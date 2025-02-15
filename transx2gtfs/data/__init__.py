@@ -3,16 +3,18 @@ import os
 __all__ = ["available", "get_path"]
 
 _module_path = os.path.dirname(__file__)
-_available_files = {"naptan_stops": "Stops.txt",
-                    "bank_holidays": "bank-holidays.json",
-                    "test_data_dir": ["test_data", "unpacked"],
-                    "test_tfl_format": ["test_data", "unpacked", "tfl_1-HAM-_-y05-2675925.xml"],
-                    "test_txc21_format": ["test_data", "unpacked", "tfl_99-PIC-B-y05-4.xml"],
-                    "test_packed_data": ["test_data", "packed.zip"],
-                    "test_nested_packed_data": ["test_data", "nested.zip"],
-                    "test_dir_with_packed_data": ["test_data", "dir_with_packed"]
-                    }
+_available_files = {
+    "naptan_stops": "Stops.txt",
+    "bank_holidays": "bank-holidays.json",
+    "test_data_dir": ["test_data", "unpacked"],
+    "test_tfl_format": ["test_data", "unpacked", "tfl_1-HAM-_-y05-2675925.xml"],
+    "test_txc21_format": ["test_data", "unpacked", "tfl_99-PIC-B-y05-4.xml"],
+    "test_packed_data": ["test_data", "packed.zip"],
+    "test_nested_packed_data": ["test_data", "nested.zip"],
+    "test_dir_with_packed_data": ["test_data", "dir_with_packed"],
+}
 available = list(_available_files.keys())
+
 
 def get_path(dataset):
     """
@@ -27,9 +29,13 @@ def get_path(dataset):
     """
     if dataset in _available_files:
         if isinstance(_available_files[dataset], list):
-            return os.path.abspath(os.path.join(_module_path, *_available_files[dataset]))
+            return os.path.abspath(
+                os.path.join(_module_path, *_available_files[dataset])
+            )
         else:
-            return os.path.abspath(os.path.join(_module_path, _available_files[dataset]))
+            return os.path.abspath(
+                os.path.join(_module_path, _available_files[dataset])
+            )
     else:
         msg = "The dataset '{data}' is not available. ".format(data=dataset)
         msg += "Available datasets are {}".format(", ".join(available))

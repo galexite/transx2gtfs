@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "transx2gtfs"
 version = "0.4.1"
 description = "A Python tool to convert TransXchange data into GTFS."
+requires-python = ">=3.9"
 dependencies = ["pandas>=0.24.1", "pyproj>=2.1.3", "untangle>=1.1.1"]
 license.file = "LICENSE"
 authors = [{ name = "Henrikki Tenkanen", email = "h.tenkanen@ucl.ac.uk" }]
@@ -19,8 +20,11 @@ classifiers = [
 ]
 readme = "README.md"
 
-[project.optional-dependencies]
-dev = ["pytest"]
-
 [tool.setuptools]
 packages = ["transx2gtfs"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "ruff>=0.9.6",
+]

@@ -1,14 +1,15 @@
 from transx2gtfs.data import get_path
 import pytest
 
+
 @pytest.fixture
 def test_tfl_data():
-    return get_path('test_tfl_format')
+    return get_path("test_tfl_format")
 
 
 @pytest.fixture
 def test_txc21_data():
-    return get_path('test_txc21_format')
+    return get_path("test_txc21_format")
 
 
 def test_reading_stops_from_txc21(test_txc21_data):
@@ -26,7 +27,7 @@ def test_reading_stops_from_txc21(test_txc21_data):
     assert stops.shape == (3, 4)
 
     # Test that required columns exist
-    required_columns = ['stop_id', 'stop_name', 'stop_lat', 'stop_lon']
+    required_columns = ["stop_id", "stop_name", "stop_lat", "stop_lon"]
     for col in required_columns:
         assert col in stops.columns
 
@@ -50,7 +51,7 @@ def test_reading_stops_from_tfl(test_tfl_data):
     assert stops.shape == (43, 4)
 
     # Test that required columns exist
-    required_columns = ['stop_id', 'stop_name', 'stop_lat', 'stop_lon']
+    required_columns = ["stop_id", "stop_name", "stop_lat", "stop_lon"]
     for col in required_columns:
         assert col in stops.columns
 
