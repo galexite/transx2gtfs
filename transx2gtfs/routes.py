@@ -1,18 +1,23 @@
+import contextlib
 import pandas as pd
 
 
-def get_mode(mode):
+def get_mode(service) -> int:
     """Parse mode from TransXChange value"""
-    if mode in ["tram", "trolleyBus"]:
-        return 0
-    elif mode in ["underground", "metro"]:
-        return 1
-    elif mode == "rail":
-        return 2
-    elif mode in ["bus", "coach"]:
-        return 3
-    elif mode == "ferry":
-        return 4
+    with contextlib.suppress(AttributeError):
+        mode = service.Mode.cdata
+        if mode in ["tram", "trolleyBus"]:
+            return 0
+        elif mode in ["underground", "metro"]:
+            return 1
+        elif mode == "rail":
+            return 2
+        elif mode in ["bus", "coach"]:
+            return 3
+        elif mode == "ferry":
+            return 4
+
+    return 3  # default to bus
 
 
 def get_route_type(data):

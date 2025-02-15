@@ -38,10 +38,13 @@ License
 MIT.
 """
 
+from __future__ import annotations
+from pathlib import Path
 from time import time as timeit
 import sqlite3
 import os
 import multiprocessing
+from typing import TYPE_CHECKING
 from transx2gtfs.stop_times import get_stop_times
 from transx2gtfs.stops import get_stops
 from transx2gtfs.trips import get_trips
@@ -56,10 +59,13 @@ from transx2gtfs.dataio import (
     read_unpacked_xml,
 )
 from transx2gtfs.transxchange import get_gtfs_info
-from transx2gtfs.distribute import create_workers
+from transx2gtfs.distribute import create_workers, Workload
+
+if TYPE_CHECKING:
+    from _typeshed import StrPath
 
 
-def process_files(parallel):
+def process_files(parallel: Workload) -> None:
     # Get files from input instance
     files = parallel.input_files
     file_size_limit = parallel.file_size_limit
@@ -67,7 +73,7 @@ def process_files(parallel):
 
     for idx, path in enumerate(files):
         # If type is string, it is a direct filepath to XML
-        if isinstance(path, str):
+        if isinstance(path, Path):
             data, file_size, xml_name = read_unpacked_xml(path)
 
         # If the type is dictionary contents are in a zip
@@ -75,7 +81,7 @@ def process_files(parallel):
             # If the type of value is a string the file can be read directly
             # from the given Zipfile path, with following structure:
             # {"transxchange_name.xml" : "/home/data/myzipfile.zip"}
-            if isinstance(list(path.values())[0], str):
+            if isinstance(list(path.values())[0], Path):
                 data, file_size, xml_name = read_xml_inside_zip(path)
 
             # If the type of value is a dictionary the xml-file
@@ -85,9 +91,11 @@ def process_files(parallel):
             elif isinstance(list(path.values())[0], dict):
                 data, file_size, xml_name = read_xml_inside_nested_zip(path)
             else:
-                raise ValueError("Something is wrong with the input xml-file paths.")
+                raise TypeError("Expected Path or dict[str, Path] for file in zip")
         else:
-            raise ValueError("Something is wrong with the input xml-file paths.")
+            raise TypeError(
+                f"Expected Path or dict[str, Path | dict[str, Path]] for element {idx}, got {type(path)}"
+            )
 
         # Filesize
         size = round((file_size / 1000000), 1)
@@ -169,11 +177,11 @@ def process_files(parallel):
 
 
 def convert(
-    input_filepath,
-    output_filepath,
-    append_to_existing=False,
-    worker_cnt=None,
-    file_size_limit=2000,
+    input_filepath: StrPath,
+    output_filepath: StrPath,
+    append_to_existing: bool = False,
+    worker_cnt: int | None = None,
+    file_size_limit: int = 2000,
 ):
     """
     Converts TransXchange formatted schedule data into GTFS feed.
@@ -196,9 +204,11 @@ def convert(
     # Total start
     tot_start_t = timeit()
 
+    input_filepath = Path(input_filepath)
+    output_filepath = Path(output_filepath)
+
     # Filepath for temporary gtfs db
-    target_dir = os.path.dirname(output_filepath)
-    gtfs_db = os.path.join(target_dir, "gtfs.db")
+    gtfs_db = output_filepath.parent / "gtfs.db"
 
     # If append to database is false remove previous gtfs-database if it exists
     if not append_to_existing:
@@ -206,24 +216,28 @@ def convert(
             os.remove(gtfs_db)
 
     # Retrieve all TransXChange files
-    files = get_xml_paths(input_filepath)
-
-    # Iterate over files
-    print("Populating database ..")
+    files = list(get_xml_paths(input_filepath))
 
     # Create workers
-    workers = create_workers(
-        input_files=files,
-        worker_cnt=worker_cnt,
-        file_size_limit=file_size_limit,
-        gtfs_db=gtfs_db,
-    )
+    if worker_cnt > 1:
+        workers = create_workers(
+            input_files=files,
+            worker_cnt=worker_cnt,
+            file_size_limit=file_size_limit,
+            gtfs_db=gtfs_db,
+        )
 
-    # Create Pool
-    pool = multiprocessing.Pool()
+        # Create Pool
+        pool = multiprocessing.Pool()
 
-    # Generate GTFS info to the database in parallel
-    pool.map(process_files, workers)
+        # Generate GTFS info to the database in parallel
+        pool.map(process_files, workers)
+    else:
+        process_files(
+            Workload(
+                input_files=files, file_size_limit=file_size_limit, gtfs_db=gtfs_db
+            )
+        )
 
     # Print information about the total time
     tot_end_t = timeit()

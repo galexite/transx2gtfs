@@ -68,16 +68,22 @@ def get_midnight_formatted_times(
     return arrival_hour, departure_hour
 
 
-def process(vjourneys):
+_VEHICLE_JOURNEYS_COLUMNS = [
+    "vehicle_journey_id",
+    "service_ref",
+    "journey_pattern_id",
+    "weekdays",
+    "non_operative_days",
+]
+
+
+def get_vehicle_journeys(vjourneys) -> pd.DataFrame:
     """Process vehicle journeys"""
     # Number of journeys to process
     journey_cnt = len(vjourneys)
 
-    # Container for gtfs_info
-    gtfs_info = pd.DataFrame()
-
     # Iterate over VehicleJourneys
-    for i, journey in enumerate(vjourneys):
+    def process_vehicle_journey(i: int, journey) -> list:
         if i != 0 and i % 50 == 0:
             print("Processed %s / %s journeys." % (i, journey_cnt))
         # Get service reference
@@ -96,23 +102,23 @@ def process(vjourneys):
         non_operative_days = get_calendar_dates_exceptions(journey)
 
         # Create gtfs_info row
-        info = dict(
-            vehicle_journey_id=vehicle_journey_id,
-            service_ref=service_ref,
-            journey_pattern_id=journey_pattern_id,
-            weekdays=weekdays,
-            non_operative_days=non_operative_days,
-        )
+        return [
+            vehicle_journey_id,
+            service_ref,
+            journey_pattern_id,
+            weekdays,
+            non_operative_days,
+        ]
 
-        # Merge into stop times
-        gtfs_info = gtfs_info.append(info, ignore_index=True, sort=False)
-
-    return gtfs_info
+    return pd.DataFrame.from_records(
+        (process_vehicle_journey(i, journey) for i, journey in enumerate(vjourneys)),
+        columns=_VEHICLE_JOURNEYS_COLUMNS,
+    )
 
 
 def process_vehicle_journeys(
     vjourneys,
-    service_jp_info,
+    service_jp_info: pd.DataFrame,
     sections,
     service_operative_days,
     service_non_operative_days,
@@ -376,7 +382,7 @@ def get_gtfs_info(data):
     service_non_operative_days = get_service_calendar_dates_exceptions(data)
 
     # Process
-    gtfs_info = process_vehicle_journeys(
+    return process_vehicle_journeys(
         vjourneys=vjourneys,
         service_jp_info=service_jp_info,
         sections=sections,
@@ -384,10 +390,8 @@ def get_gtfs_info(data):
         service_non_operative_days=service_non_operative_days,
     )
 
-    return gtfs_info
 
-
-def parse_runtime_duration(runtime):
+def parse_runtime_duration(runtime: str) -> int:
     """Parse duration information from TransXChange runtime code"""
 
     # Converters
@@ -411,18 +415,38 @@ def parse_runtime_duration(runtime):
     return time
 
 
-def get_service_journey_pattern_info(data):
+_JOURNEY_PATTERN_COLUMNS = [
+    "journey_pattern_id",
+    "service_code",
+    "agency_id",
+    "line_name",
+    "travel_mode",
+    "service_description",
+    "trip_headsign",
+    # Links to trips
+    "jp_section_reference",
+    "direction_id",
+    # Route_id linking to routes
+    "route_id",
+    "vehicle_type",
+    "vehicle_description",
+    "start_date",
+    "end_date",
+]
+
+
+def get_service_journey_pattern_info(data) -> pd.DataFrame:
     """Retrieve a DataFrame of all Journey Pattern info of services"""
-    services = data.TransXChange.Services.Service
 
-    service_jp_info = pd.DataFrame()
-
-    for service in services:
+    def process_service(service) -> list:
         # Service description
-        service_description = service.Description.cdata
+        try:
+            service_description = service.Description.cdata
+        except AttributeError:
+            service_description = None
 
         # Travel mode
-        mode = get_mode(service.Mode.cdata)
+        mode = get_mode(service)
 
         # Line name
         line_name = service.Lines.Line.LineName.cdata
@@ -438,10 +462,13 @@ def get_service_journey_pattern_info(data):
             datetime.strptime(service.OperatingPeriod.StartDate.cdata, "%Y-%m-%d"),
             "%Y%m%d",
         )
-        end_date = datetime.strftime(
-            datetime.strptime(service.OperatingPeriod.EndDate.cdata, "%Y-%m-%d"),
-            "%Y%m%d",
-        )
+        try:
+            end_date = datetime.strftime(
+                datetime.strptime(service.OperatingPeriod.EndDate.cdata, "%Y-%m-%d"),
+                "%Y%m%d",
+            )
+        except AttributeError:
+            end_date = None
 
         # Retrieve journey patterns
         journey_patterns = service.StandardService.JourneyPattern
@@ -467,34 +494,33 @@ def get_service_journey_pattern_info(data):
             try:
                 # Vehicle type code
                 vehicle_type = jp.Operational.VehicleType.VehicleTypeCode.cdata
-            except:
+            except AttributeError:
                 vehicle_type = None
 
             try:
-                # Vechicle description
+                # Vehicle description
                 vehicle_description = jp.Operational.VehicleType.Description.cdata
-            except:
+            except AttributeError:
                 vehicle_description = None
 
-            # Create row
-            row = dict(
-                journey_pattern_id=journey_pattern_id,
-                service_code=service_code,
-                agency_id=agency_id,
-                line_name=line_name,
-                travel_mode=mode,
-                service_description=service_description,
-                trip_headsign=headsign,
-                # Links to trips
-                jp_section_reference=section_ref,
-                direction_id=direction,
-                # Route_id linking to routes
-                route_id=route_ref,
-                vehicle_type=vehicle_type,
-                vehicle_description=vehicle_description,
-                start_date=start_date,
-                end_date=end_date,
-            )
-            # Add to DataFrame
-            service_jp_info = service_jp_info.append(row, ignore_index=True, sort=False)
-    return service_jp_info
+            return [
+                journey_pattern_id,
+                service_code,
+                agency_id,
+                line_name,
+                mode,
+                service_description,
+                headsign,
+                section_ref,
+                direction,
+                route_ref,
+                vehicle_type,
+                vehicle_description,
+                start_date,
+                end_date,
+            ]
+
+    return pd.DataFrame.from_records(
+        (process_service(service) for service in data.TransXChange.Services.Service),
+        columns=_JOURNEY_PATTERN_COLUMNS,
+    )

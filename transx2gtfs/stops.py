@@ -1,65 +1,50 @@
-import os
+from pathlib import Path
+import time
+import urllib.request
+from filelock import FileLock
 import pandas as pd
 import pyproj
 import warnings
-import io
 import urllib
-from zipfile import ZipFile
-import tempfile
 
 
-def _update_naptan_data(
-    url="https://beta-naptan.dft.gov.uk/Download/National/csv", filepath=None
-):
-    if filepath is None:
-        temp_dir = tempfile.gettempdir()
-        target_dir = os.path.join(temp_dir, "transx2gtfs")
-        target_file = os.path.join(target_dir, "NaPTAN_data.zip")
+_NAPTAN_CSV_URL = "https://beta-naptan.dft.gov.uk/Download/National/csv"
 
-        if not os.path.exists(target_dir):
-            os.makedirs(target_dir)
-
-        if os.path.exists(target_file):
-            print("Removing old stop data")
-            os.remove(target_file)
-    else:
-        target_file = filepath
-
-    # Download the NaPTAN data to temp
-    filepath, msg = urllib.request.urlretrieve(url, target_file)
-    print("Downloaded/updated NaPTAN stop dataset to:\n'{fp}'".format(fp=filepath))
+_CACHE_KEY = "transx2gtfs"
+_CACHE_DIR = Path.home() / ".cache" / _CACHE_KEY
+_CACHED_STOPS_CSV = _CACHE_DIR / "stops.csv"
+_CACHED_STOPS_CSV_LOCK = _CACHE_DIR / "stops.csv.lock"
 
 
-def read_naptan_stops(naptan_fp=None):
+def _delete_cached_naptan_stops_csv() -> None:
+    with FileLock(_CACHED_STOPS_CSV_LOCK):
+        _CACHED_STOPS_CSV.unlink(missing_ok=True)
+
+
+def _get_or_download_naptan_stops_csv() -> Path:
+    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    def stops_csv_is_ok():
+        return _CACHED_STOPS_CSV.exists()
+
+    if not stops_csv_is_ok():
+        with FileLock(_CACHED_STOPS_CSV_LOCK):
+            if stops_csv_is_ok():
+                return _CACHED_STOPS_CSV
+            stops_csv_tmp = _CACHE_DIR / "stops.csv.tmp"
+            urllib.request.urlretrieve(_NAPTAN_CSV_URL, stops_csv_tmp)
+            stops_csv_tmp.rename(_CACHED_STOPS_CSV)
+    return _CACHED_STOPS_CSV
+
+
+def read_naptan_stops(naptan_fp: Path | None = None) -> pd.DataFrame:
     """
     Reads NaPTAN stops from temp. If the Stops do not exist in the temp, downloads the data.
     """
     if naptan_fp is None:
-        naptan_fp = os.path.join(
-            tempfile.gettempdir(), "transx2gtfs", "NaPTAN_data.zip"
-        )
+        naptan_fp = _get_or_download_naptan_stops_csv()
 
-    max_attemps = 20
-    i = 1
-    while True:
-        if not os.path.exists(naptan_fp):
-            _update_naptan_data()
-        else:
-            break
-
-        if i == max_attemps:
-            raise ValueError("Could not update the stops data.\nMax attempts reached.")
-        i += 1
-
-    # Read the stops from the zip
-    z = ZipFile(naptan_fp)
-
-    if "Stops.csv" not in z.namelist():
-        raise ValueError("NaPTAN dataset did not contain stops!")
-
-    stops = pd.read_csv(
-        io.BytesIO(z.read("Stops.csv")), encoding="latin1", low_memory=False
-    )
+    stops = pd.read_csv(naptan_fp, low_memory=False)
 
     # Rename required columns into GTFS format
     stops = stops.rename(
@@ -120,7 +105,6 @@ def _get_tfl_style_stops(data):
         if len(stop) == 0:
             # Try first to refresh the Stop data
             # -----------------------------------
-            _update_naptan_data()
             naptan_stops = read_naptan_stops()
             stop = naptan_stops.loc[naptan_stops[_stop_id_col] == stop_id]
 
@@ -171,7 +155,7 @@ def _get_tfl_style_stops(data):
             raise ValueError("Had more than 1 stop with identical stop reference.")
 
         # Add to container
-        stop_data = stop_data.append(stop, ignore_index=True, sort=False)
+        stop_data = pd.concat([stop_data, stop])
 
     return stop_data
 
@@ -196,7 +180,7 @@ def _get_txc_21_style_stops(data):
 
         if len(stop) == 0:
             # Try first to refresh the Stop data
-            _update_naptan_data()
+            # _delete_cached_naptan_stops_csv()
             naptan_stops = read_naptan_stops()
             stop = naptan_stops.loc[naptan_stops[_stop_id_col] == stop_id]
 
@@ -213,7 +197,7 @@ def _get_txc_21_style_stops(data):
             raise ValueError("Had more than 1 stop with identical stop reference.")
 
         # Add to container
-        stop_data = stop_data.append(stop, ignore_index=True, sort=False)
+        stop_data = pd.concat([stop_data, stop])
 
     return stop_data
 

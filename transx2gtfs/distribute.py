@@ -1,15 +1,23 @@
+from __future__ import annotations
+from dataclasses import dataclass
 import math
 from multiprocessing import cpu_count
+from pathlib import Path
 
 
-class Parallel:
-    def __init__(self, input_files, file_size_limit, gtfs_db):
-        self.input_files = input_files
-        self.file_size_limit = file_size_limit
-        self.gtfs_db = gtfs_db
+@dataclass(frozen=True)
+class Workload:
+    input_files: list[Path | dict[str, Path]]
+    file_size_limit: int
+    gtfs_db: Path
 
 
-def create_workers(input_files, worker_cnt=None, gtfs_db=None, file_size_limit=1000):
+def create_workers(
+    input_files: list[Path | dict[str, Path]],
+    worker_cnt: int | None = None,
+    gtfs_db: Path | None = None,
+    file_size_limit: int = 1000,
+) -> list[Workload]:
     """Create workers for multiprocessing"""
 
     # Distribute the process into all cores
@@ -32,7 +40,7 @@ def create_workers(input_files, worker_cnt=None, gtfs_db=None, file_size_limit=1
     batch_size = math.ceil(file_cnt / core_cnt)
 
     # Create journey workers
-    workers = []
+    workers: list[Workload] = []
     start_i = 0
     end_i = batch_size
 
@@ -46,7 +54,7 @@ def create_workers(input_files, worker_cnt=None, gtfs_db=None, file_size_limit=1
             selection = input_files[start_i:end_i]
 
         workers.append(
-            Parallel(
+            Workload(
                 input_files=selection, file_size_limit=file_size_limit, gtfs_db=gtfs_db
             )
         )

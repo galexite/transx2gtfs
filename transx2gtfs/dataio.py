@@ -1,4 +1,8 @@
+from __future__ import annotations
+import itertools
+from pathlib import Path
 import sqlite3
+from typing import TYPE_CHECKING
 import pandas as pd
 from zipfile import ZipFile, ZIP_DEFLATED
 import csv
@@ -7,32 +11,22 @@ import io
 import os
 import untangle
 
+if TYPE_CHECKING:
+    from _typeshed import StrPath
+    from collections.abc import Generator, Iterator
 
-def get_paths_from_zip(zip_filepath):
+
+def get_paths_from_zip(zip_filepath: Path) -> Generator[dict[str, Path], None, None]:
     """
-    Extracts TransXchange xml-paths from ZipFile (also nested).
+    Extracts XML file paths from a .zip file.
     """
-    xml_contents = []
-    z = ZipFile(zip_filepath)
-    files_in_zip = z.namelist()
-
-    for name in files_in_zip:
-        if name.endswith("xml"):
-            # Create dictionary with name as key and zip filepath value
-            xml_contents.append({name: z.filename})
-
-        # If the zip contained another zip take it's contents
-        elif name.endswith(".zip"):
-            # Read inner zip to memory
-            inner_zip = ZipFile(io.BytesIO(z.read(name)))
-            # Read files from inner zip
-            for inner_name in inner_zip.namelist():
-                if inner_name.endswith("xml"):
-                    xml_contents.append({z.filename: {name: inner_name}})
-    return xml_contents
+    with ZipFile(zip_filepath) as z:
+        for name in z.namelist():
+            if name.endswith(".xml"):
+                yield {name: zip_filepath}
 
 
-def get_xml_paths(filepath):
+def get_xml_paths(filepath: Path) -> Iterator[Path | dict[str, Path]]:
     """
     Retrieves XML paths from:
         - directory +
@@ -41,23 +35,21 @@ def get_xml_paths(filepath):
 
     Finds xml files with all combinations of the above.
     """
-    # Input is directory
-    # ------------------
-    if os.path.isdir(filepath):
-        # Read all XML and zip files
-        xml_contents = glob.glob(os.path.join(filepath, "*.xml"))
-        zip_contents = glob.glob(os.path.join(filepath, "*.zip"))
+    match filepath.suffix:
+        case ".zip":
+            return get_paths_from_zip(filepath)
+        case ".xml":
+            return [str(filepath)]
+    if not os.path.isdir(filepath):
+        raise ValueError(f"{filepath} is not a .zip, .xml file or directory")
 
-        # Parse xml references inside zip files
-        if len(zip_contents) > 0:
-            for zfp in zip_contents:
-                xml_contents += get_paths_from_zip(zfp)
-
-    # Input is a ZipFile
-    elif filepath.endswith(".zip"):
-        xml_contents = get_paths_from_zip(filepath)
-
-    return xml_contents
+    return itertools.chain(
+        filepath.glob("*.xml"),
+        (
+            get_paths_from_zip(zipfp)
+            for zipfp in glob.glob(os.path.join(filepath, "*.zip"))
+        ),
+    )
 
 
 def read_unpacked_xml(xml_path):
@@ -100,7 +92,7 @@ def read_xml_inside_nested_zip(xml_path):
     return parsed_xml, file_size, xml_name
 
 
-def generate_gtfs_export(gtfs_db_fp):
+def generate_gtfs_export(gtfs_db_fp: StrPath) -> dict[str, pd.DataFrame]:
     """Reads the gtfs database and generates an export dictionary for GTFS"""
     # Initialize connection
     conn = sqlite3.connect(gtfs_db_fp)
@@ -188,7 +180,9 @@ def generate_gtfs_export(gtfs_db_fp):
     return gtfs_data
 
 
-def save_to_gtfs_zip(output_zip_fp, gtfs_data):
+def save_to_gtfs_zip(
+    output_zip_fp: StrPath, gtfs_data: dict[str, pd.DataFrame]
+) -> None:
     """Export GTFS data to zip file.
 
     Parameters
@@ -200,9 +194,6 @@ def save_to_gtfs_zip(output_zip_fp, gtfs_data):
         A dictionary containing DataFrames for different GTFS outputs.
     """
     print("Exporting GTFS\n----------------------")
-
-    # Quoted attributes in stops
-    _quote_attributes = ["stop_name", "stop_desc", "trip_headsign"]
 
     # Open stream
     with ZipFile(output_zip_fp, "w") as zf:
@@ -227,4 +218,4 @@ def save_to_gtfs_zip(output_zip_fp, gtfs_data):
             else:
                 print("Skipping. No data available for:", fname)
     print("Success.")
-    print("GTFS zipfile was saved to: %s" % output_zip_fp)
+    print(f"GTFS zipfile was saved to: {output_zip_fp}")
