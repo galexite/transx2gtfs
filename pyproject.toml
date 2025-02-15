@@ -19,5 +19,8 @@ classifiers = [
 ]
 readme = "README.md"
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [tool.setuptools]
 packages = ["transx2gtfs"]
