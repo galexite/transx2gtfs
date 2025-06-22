@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections.abc import Generator
 
 import pandas as pd
 
@@ -16,30 +17,39 @@ _OPERATOR_URLS = {
 }
 
 
-def get_agency(data: XMLTree) -> pd.Series[str]:
+def get_agency(data: XMLTree) -> pd.DataFrame:
     """Parse agency information from TransXchange elements"""
-    # Agency id
-    operator_el = data.find("./txc:Operators/txc:Operator", NS)
-    assert operator_el is not None
-    agency_id = operator_el.get("id")
-    assert agency_id
 
-    # Agency name
-    agency_name_el = operator_el.find("./txc:OperatorNameOnLicence", NS)
-    assert agency_name_el is not None
-    agency_name = agency_name_el.text
-    assert agency_name
+    def gen_agencies() -> Generator[tuple[str, str, str, str, str], None, None]:
+        # Agency id
+        for operator_el in data.iterfind("./txc:Operators/txc:Operator", NS):
+            agency_id = operator_el.get("id")
+            assert agency_id
 
-    # Agency url
-    agency_url = _OPERATOR_URLS.get(agency_id, "NA")
+            # Agency name
+            agency_name_el = operator_el.find("./txc:OperatorNameOnLicence", NS)
+            assert agency_name_el is not None
+            agency_name = agency_name_el.text
+            assert agency_name
 
-    # Parse row
-    return pd.Series(
-        {
-            "agency_id": agency_id,
-            "agency_name": agency_name,
-            "agency_url": agency_url,
-            "agency_timezone": "Europe/London",
-            "agency_lang": "en",
-        }
-    )
+            # Agency url
+            agency_url = _OPERATOR_URLS.get(agency_id, "NA")
+
+            yield (
+                agency_id,
+                agency_name,
+                agency_url,
+                "Europe/London",
+                "en",
+            )
+
+    return pd.DataFrame.from_records( # type: ignore
+        gen_agencies(),
+        columns=[
+            "agency_id",
+            "agency_name",
+            "agency_url",
+            "agency_timezone",
+            "agency_lang",
+        ]
+    ).drop_duplicates(ignore_index=True)

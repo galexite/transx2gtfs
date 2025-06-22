@@ -1,5 +1,6 @@
 import argparse
 from collections.abc import Sequence
+import multiprocessing
 from pathlib import Path
 
 from . import convert
@@ -28,7 +29,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "-j",
         "--workers",
-        default=1,
+        default=multiprocessing.cpu_count(),
         type=int,
         help="Number of workers to use when processing the data",
     )
