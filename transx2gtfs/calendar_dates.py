@@ -89,9 +89,7 @@ def get_calendar_dates(gtfs_info: pd.DataFrame) -> pd.DataFrame:
 
     # The exception will always be indicating non-operative service (value 2)
     calendar_info["exception_type"] = 2
-
-    def
-
+    
     # Container for calendar_dates
     calendar_info.apply(update_calendar_info)
 
