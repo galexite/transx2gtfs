@@ -173,7 +173,7 @@ def process_vehicle_journeys(
     # Iterate over VehicleJourneys
     for i, journey in enumerate(journeys):
         if i != 0 and i % 50 == 0:
-            print("Processed %s / %s journeys." % (i, journey_cnt))
+            print(f"Processed {i} / {journey_cnt} journeys.")
         # Get service reference
         service_ref = get_text(journey, "txc:ServiceRef")
 
@@ -377,6 +377,8 @@ def process_vehicle_journeys(
         # Add to GTFS DataFrame
         assert section_times is not None
         gtfs_info = pd.concat([gtfs_info, section_times], ignore_index=True)
+
+    print(f"Processed {journey_cnt} / {journey_cnt} journeys.")
 
     # Generate service_id column into the table
     gtfs_info = generate_service_id(gtfs_info)

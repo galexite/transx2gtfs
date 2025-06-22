@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from typing import cast
 import pandas as pd
 from transx2gtfs.bank_holidays import get_bank_holiday_dates
@@ -54,14 +54,22 @@ def get_calendar_dates(gtfs_info: pd.DataFrame) -> pd.DataFrame | None:
     # Get initial info about non-operative days
     gtfs_info = gtfs_info.copy()
     gtfs_info = gtfs_info.dropna(subset=["non_operative_days"])
-    non_operative_values = (s for s in cast(Iterable[str], gtfs_info["non_operative_days"].unique()) if s)
+    non_operative_values = (
+        s for s in cast(Iterable[str], gtfs_info["non_operative_days"].unique()) if s
+    )
 
     # Container for all info
-    non_operatives = set(day for value in non_operative_values for day in value.split("|"))
+    non_operatives = set(
+        day for value in non_operative_values for day in value.split("|")
+    )
 
     # Check if there exists some exceptions that are not known bank holidays
     for holiday in non_operatives:
-        if (holiday not in _KNOWN_HOLIDAYS.keys()) and (holiday != "AllBankHolidays") and not holiday.endswith("Eve"):
+        if (
+            (holiday not in _KNOWN_HOLIDAYS.keys())
+            and (holiday != "AllBankHolidays")
+            and not holiday.endswith("Eve")
+        ):
             warnings.warn(
                 f"Did not recognize holiday {holiday}",
                 UserWarning,
@@ -78,35 +86,18 @@ def get_calendar_dates(gtfs_info: pd.DataFrame) -> pd.DataFrame | None:
     if not bank_holidays:
         return None
 
-    # Otherwise produce calendar_dates data
-
-    # Select distinct (service_id) rows that have bank holiday determined
-    calendar_info = gtfs_info[["service_id", "non_operative_days"]].copy()
-    calendar_info = calendar_info.drop_duplicates(subset=["service_id"])
-
-    # Create columns for date and exception_type
-    calendar_info["date"] = None
-
-    # The exception will always be indicating non-operative service (value 2)
-    calendar_info["exception_type"] = 2
-
-    # Container for calendar_dates
-    calendar_info.apply(update_calendar_info)
-
     # Iterate over services and produce rows having exception with given bank holiday dates
-    for idx, row in calendar_info.iterrows():
-        # Iterate over exception dates
-        for date in bank_holidays:
-            # Generate row
-            row = dict(
-                service_id=row["service_id"],
-                date=date,
-                exception_type=row["exception_type"],
-            )
-            # Add to container
-            calendar_dates = calendar_dates.append(row, ignore_index=True, sort=False)
+    def gen_calendar_dates() -> Generator[tuple[str, str, int], None, None]:
+        for _, row in gtfs_info.drop_duplicates(subset=["service_id"]).iterrows(): # type: ignore
+            # Iterate over exception dates
+            for date in bank_holidays:
+                # Generate row
+                yield (
+                    row["service_id"],
+                    date,
+                    2,
+                )
 
-    # Ensure correct datatype
-    calendar_info["exception_type"] = calendar_dates["exception_type"].astype(int)
-
-    return calendar_info
+    return pd.DataFrame.from_records( # type: ignore
+        gen_calendar_dates(), columns=["service_id", "date", "exception_type"]
+    )
