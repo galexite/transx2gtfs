@@ -1,17 +1,28 @@
+from collections.abc import Generator, Iterator
+from dataclasses import dataclass
+from typing import Any, overload
 import pandas as pd
 from datetime import datetime, timedelta, time
-from transx2gtfs.calendar import get_weekday_info, get_service_operative_days_info
+from transx2gtfs.calendar import get_weekday_info
 from transx2gtfs.calendar_dates import (
-    get_calendar_dates_exceptions,
-    get_service_calendar_dates_exceptions,
+    get_non_operation_days,
 )
+from transx2gtfs.dataio import XMLElement, XMLTree
 from transx2gtfs.stop_times import generate_service_id, get_direction
 from transx2gtfs.routes import get_mode
+from transx2gtfs.xml import NS
+
+
+@dataclass
+class Service:
+    journey_patterns: pd.DataFrame
+    operation_days: str | None
+    non_operation_days: str | None
 
 
 def get_last_stop_time_info(
-    link, hour, current_date, current_dt, duration, stop_num, boarding_time
-):
+    link: XMLElement, hour, current_date, current_dt, duration, stop_num, boarding_time
+) -> dict[str, str]:
     # Parse stop_id for TO
     stop_id = link.To.StopPointRef.cdata
     # Get arrival time for the last one
@@ -33,13 +44,12 @@ def get_last_stop_time_info(
         minsecs=departure_dt.strftime("%M:%S"),
     )
 
-    info = dict(
+    return dict(
         stop_id=stop_id,
         stop_sequence=stop_num,
         arrival_time=arrival_t,
         departure_time=departure_t,
     )
-    return info
 
 
 def get_midnight_formatted_times(
@@ -77,15 +87,11 @@ _VEHICLE_JOURNEYS_COLUMNS = [
 ]
 
 
-def get_vehicle_journeys(vjourneys) -> pd.DataFrame:
+def get_vehicle_journeys(journeys: Iterator[XMLElement]) -> pd.DataFrame:
     """Process vehicle journeys"""
-    # Number of journeys to process
-    journey_cnt = len(vjourneys)
 
     # Iterate over VehicleJourneys
-    def process_vehicle_journey(i: int, journey) -> list:
-        if i != 0 and i % 50 == 0:
-            print("Processed %s / %s journeys." % (i, journey_cnt))
+    def process_vehicle_journey(journey: XMLElement) -> list:
         # Get service reference
         service_ref = journey.ServiceRef.cdata
 
@@ -99,7 +105,7 @@ def get_vehicle_journeys(vjourneys) -> pd.DataFrame:
         weekdays = get_weekday_info(journey)
 
         # Parse calendar dates (exceptions in operation)
-        non_operative_days = get_calendar_dates_exceptions(journey)
+        non_operative_days = get_non_operation_days(journey)
 
         # Create gtfs_info row
         return [
@@ -111,23 +117,16 @@ def get_vehicle_journeys(vjourneys) -> pd.DataFrame:
         ]
 
     return pd.DataFrame.from_records(
-        (process_vehicle_journey(i, journey) for i, journey in enumerate(vjourneys)),
+        (process_vehicle_journey(journey) for journey in journeys),
         columns=_VEHICLE_JOURNEYS_COLUMNS,
     )
 
 
 def process_vehicle_journeys(
-    vjourneys,
-    service_jp_info: pd.DataFrame,
-    sections,
-    service_operative_days,
-    service_non_operative_days,
-):
-    """Process single vehicle journey instance"""
-
-    # Number of journeys to process
-    journey_cnt = len(vjourneys)
-
+    journeys: Iterator[XMLElement],
+    sections: Iterator[XMLElement],
+    services: list[Service],
+) -> pd.DataFrame:
     # Container for gtfs_info
     gtfs_info = pd.DataFrame()
 
@@ -139,7 +138,7 @@ def process_vehicle_journeys(
     boarding_time = 0
 
     # Iterate over VehicleJourneys
-    for i, journey in enumerate(vjourneys):
+    for i, journey in enumerate(journeys):
         if i != 0 and i % 50 == 0:
             print("Processed %s / %s journeys." % (i, journey_cnt))
         # Get service reference
@@ -159,7 +158,7 @@ def process_vehicle_journeys(
             weekdays = service_operative_days
 
         # Parse calendar dates (exceptions in operation)
-        non_operative_days = get_calendar_dates_exceptions(journey)
+        non_operative_days = get_non_operation_days(journey)
 
         # If exceptions were not available try using information from Services.Service
         if non_operative_days is None:
@@ -354,7 +353,7 @@ def process_vehicle_journeys(
     return gtfs_info
 
 
-def get_gtfs_info(data):
+def get_gtfs_info(data: XMLTree) -> pd.DataFrame:
     """
     Get GTFS info from TransXChange elements.
 
@@ -369,25 +368,26 @@ def get_gtfs_info(data):
         - Trips: <route_id>, service_id, <trip_id>, (+ optional: trip_headsign, direction_id, trip_shortname)
         - Routes: <route_id>, agency_id, route_type, route_short_name, route_long_name
     """
-    sections = data.TransXChange.JourneyPatternSections.JourneyPatternSection
-    vjourneys = data.TransXChange.VehicleJourneys.VehicleJourney
+    sections = data.iterfind(
+        "./txc:JourneyPatternSections/txc:JourneyPatternSection", NS
+    )
+    journeys = data.iterfind("./txc:VehicleJourneys/txc:VehicleJourney", NS)
 
     # Get all service journey pattern info
-    service_jp_info = get_service_journey_pattern_info(data)
-
-    # Get service operative days
-    service_operative_days = get_service_operative_days_info(data)
-
-    # Get service non-operative days
-    service_non_operative_days = get_service_calendar_dates_exceptions(data)
+    services = [
+        Service(
+            journey_patterns=get_service_journey_patterns(service),
+            operation_days=get_weekday_info(service),
+            non_operation_days=get_non_operation_days(service),
+        )
+        for service in data.iterfind("./txc:Services/txc:Service", NS)
+    ]
 
     # Process
     return process_vehicle_journeys(
-        vjourneys=vjourneys,
-        service_jp_info=service_jp_info,
-        sections=sections,
-        service_operative_days=service_operative_days,
-        service_non_operative_days=service_non_operative_days,
+        journeys,
+        sections,
+        services,
     )
 
 
@@ -435,75 +435,92 @@ _JOURNEY_PATTERN_COLUMNS = [
 ]
 
 
-def get_service_journey_pattern_info(data) -> pd.DataFrame:
-    """Retrieve a DataFrame of all Journey Pattern info of services"""
+@overload
+def _text[T](base: XMLElement, path: str, *, default: T) -> str | T: ...
 
-    def process_service(service) -> list:
+
+@overload
+def _text(base: XMLElement, path: str) -> str: ...
+
+
+def _text[T](base: XMLElement, path: str, **kwargs: T) -> str | T:
+    el = base.find(path, NS)
+    if "default" in kwargs and el is None:
+        return kwargs["default"]
+    assert el is not None
+    text = el.text
+    if "default" in kwargs:
+        return text or kwargs["default"]
+    assert text
+    return text
+
+
+def get_service_journey_patterns(service: XMLElement) -> pd.DataFrame:
+    """Retrieve a DataFrame of all JourneyPatterns of the service"""
+
+    def process_service(service: XMLElement) -> Generator[tuple[Any, ...], None, None]:
         # Service description
-        try:
-            service_description = service.Description.cdata
-        except AttributeError:
-            service_description = None
+        service_description: str | None = None
+        if service_description_el := service.find("txc:Description", NS):
+            service_description = service_description_el.text
 
         # Travel mode
         mode = get_mode(service)
 
         # Line name
-        line_name = service.Lines.Line.LineName.cdata
+        line_name = _text(service, "./txc:Lines/txc:Line/txc:LineName")
 
         # Service code
-        service_code = service.ServiceCode.cdata
+        service_code = _text(service, "txc:ServiceCode")
 
         # Operator reference code
-        agency_id = service.RegisteredOperatorRef.cdata
+        agency_id = _text(service, "txc:RegisteredOperatorRef")
 
         # Start and end date
         start_date = datetime.strftime(
-            datetime.strptime(service.OperatingPeriod.StartDate.cdata, "%Y-%m-%d"),
+            datetime.strptime(
+                _text(service, "./txc:OperatingPeriod/txc:StartDate"), "%Y-%m-%d"
+            ),
             "%Y%m%d",
         )
-        try:
+        end_date = None
+        if end_date_text := _text(service, "./txc:OperatingPeriod/txc:EndDate", default=None):
             end_date = datetime.strftime(
-                datetime.strptime(service.OperatingPeriod.EndDate.cdata, "%Y-%m-%d"),
+                datetime.strptime(
+                    end_date_text, "%Y-%m-%d"
+                ),
                 "%Y%m%d",
             )
-        except AttributeError:
-            end_date = None
 
-        # Retrieve journey patterns
-        journey_patterns = service.StandardService.JourneyPattern
+        origin = _text(service, "./txc:StandardService/txc:Origin")
+        destination = _text(service, "./txc:StandardService/txc:Destination")
 
-        for jp in journey_patterns:
+        for jp in service.iterfind("./txc:StandardService/txc:JourneyPattern", NS):
             # Journey pattern id
-            journey_pattern_id = jp.get_attribute("id")
+            journey_pattern_id = jp.get("id")
 
             # Section reference
-            section_ref = jp.JourneyPatternSectionRefs.cdata
+            section_ref = _text(jp, "txc:JourneyPatternSectionRefs")
 
             # Direction
-            direction = get_direction(jp.Direction.cdata)
+            direction = get_direction(_text(jp, "txc:Direction"))
 
             # Headsign
-            if direction == 0:
-                headsign = service.StandardService.Origin.cdata
-            else:
-                headsign = service.StandardService.Destination.cdata
+            headsign = origin if direction == 0 else destination
             # Route Reference
-            route_ref = jp.RouteRef.cdata
+            route_ref = _text(jp, "txc:RouteRef")
 
-            try:
-                # Vehicle type code
-                vehicle_type = jp.Operational.VehicleType.VehicleTypeCode.cdata
-            except AttributeError:
-                vehicle_type = None
+            vehicle_type = _text(
+                jp,
+                "./txc:Operational/txc:VehicleType/txc:VehicleTypeCode",
+                default=None,
+            )
 
-            try:
-                # Vehicle description
-                vehicle_description = jp.Operational.VehicleType.Description.cdata
-            except AttributeError:
-                vehicle_description = None
+            vehicle_description = _text(
+                jp, "./txc:Operational/txc:VehicleType/txc:Description", default=None
+            )
 
-            return [
+            yield (
                 journey_pattern_id,
                 service_code,
                 agency_id,
@@ -518,9 +535,9 @@ def get_service_journey_pattern_info(data) -> pd.DataFrame:
                 vehicle_description,
                 start_date,
                 end_date,
-            ]
+            )
 
-    return pd.DataFrame.from_records(
-        (process_service(service) for service in data.TransXChange.Services.Service),
+    return pd.DataFrame.from_records(  # type: ignore
+        process_service(service),
         columns=_JOURNEY_PATTERN_COLUMNS,
     )

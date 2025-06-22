@@ -1,41 +1,21 @@
 import pandas as pd
 
+from transx2gtfs.dataio import XMLElement
+from transx2gtfs.xml import NS
 
-def get_service_operative_days_info(data):
+
+def get_weekday_info(data: XMLElement) -> str | None:
     """
     Get operating profile information from Services.Service.
 
     This is used if VehicleJourney does not contain the information.
     """
-    try:
-        reg_weekdays = data.TransXChange.Services.Service.OperatingProfile.RegularDayType.DaysOfWeek.get_elements()
-        weekdays = []
-        for elem in reg_weekdays:
-            weekdays.append(elem._name)
-        if len(weekdays) == 1:
-            return weekdays[0]
-        else:
-            return "|".join(weekdays)
-    except:
-        # If service does not have OperatingProfile available, return None
+
+    reg_weekdays = data.findall("./txc:OperatingProfile/txc:RegularDayType/txc:DaysOfWeek/*", NS)
+    if not reg_weekdays:
         return None
 
-
-def get_weekday_info(vehicle_journey_element):
-    """Parses weekday info from TransXChange VehicleJourney element"""
-    j = vehicle_journey_element
-    try:
-        reg_weekdays = j.OperatingProfile.RegularDayType.DaysOfWeek.get_elements()
-        weekdays = []
-        for elem in reg_weekdays:
-            weekdays.append(elem._name)
-        if len(weekdays) == 1:
-            return weekdays[0]
-        else:
-            return "|".join(weekdays)
-    except:
-        # If journey does not have OperatingProfile available, return None
-        return None
+    return "|".join(weekday.tag for weekday in reg_weekdays)
 
 
 def parse_day_range(dayinfo):

@@ -52,7 +52,6 @@ If you don't know how to install Python, you can take a look for example [these 
 
 transx2gtfs has following dependencies (tested against the latest versions available for Python 3.6, 3.7 and 3.8):
 
- - untangle
  - pandas
  - pyproj
   

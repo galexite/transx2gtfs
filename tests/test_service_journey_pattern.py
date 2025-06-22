@@ -18,12 +18,12 @@ def test_naptan_data():
 
 
 def test_reading_journey_patterns_from_txc21(test_txc21_data, test_naptan_data):
-    from transx2gtfs.transxchange import get_service_journey_pattern_info
+    from transx2gtfs.transxchange import get_service_journey_patterns
     from pandas import DataFrame
     import untangle
 
     data = untangle.parse(test_txc21_data)
-    journey_patterns = get_service_journey_pattern_info(data)
+    journey_patterns = get_service_journey_patterns(data)
 
     # Test type
     assert isinstance(journey_patterns, DataFrame)
@@ -58,12 +58,12 @@ def test_reading_journey_patterns_from_txc21(test_txc21_data, test_naptan_data):
 
 
 def test_reading_journey_patterns_from_tfl_format(test_tfl_data, test_naptan_data):
-    from transx2gtfs.transxchange import get_service_journey_pattern_info
+    from transx2gtfs.transxchange import get_service_journey_patterns
     from pandas import DataFrame
     import untangle
 
     data = untangle.parse(test_tfl_data)
-    journey_patterns = get_service_journey_pattern_info(data)
+    journey_patterns = get_service_journey_patterns(data)
 
     # Test type
     assert isinstance(journey_patterns, DataFrame)

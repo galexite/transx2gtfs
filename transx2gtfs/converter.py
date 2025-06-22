@@ -40,6 +40,7 @@ MIT.
 
 from __future__ import annotations
 from pathlib import Path
+import sys
 from time import time as timeit
 import sqlite3
 import os
@@ -54,7 +55,7 @@ from transx2gtfs.calendar import get_calendar
 from transx2gtfs.calendar_dates import get_calendar_dates
 from transx2gtfs.dataio import generate_gtfs_export, save_to_gtfs_zip, get_xml_paths
 from transx2gtfs.dataio import (
-    read_xml_inside_nested_zip,
+    # read_xml_inside_nested_zip,
     read_xml_inside_zip,
     read_unpacked_xml,
 )
@@ -73,29 +74,29 @@ def process_files(parallel: Workload) -> None:
 
     for idx, path in enumerate(files):
         # If type is string, it is a direct filepath to XML
-        if isinstance(path, Path):
-            data, file_size, xml_name = read_unpacked_xml(path)
+        data, file_size, xml_name = read_unpacked_xml(path) if isinstance(path, Path) else read_xml_inside_zip(path)
 
         # If the type is dictionary contents are in a zip
-        elif isinstance(path, dict):
-            # If the type of value is a string the file can be read directly
-            # from the given Zipfile path, with following structure:
-            # {"transxchange_name.xml" : "/home/data/myzipfile.zip"}
-            if isinstance(list(path.values())[0], Path):
-                data, file_size, xml_name = read_xml_inside_zip(path)
+        # elif isinstance(path, dict):
+        #     # If the type of value is a string the file can be read directly
+        #     # from the given Zipfile path, with following structure:
+        #     # {"transxchange_name.xml" : "/home/data/myzipfile.zip"}
+        #     if isinstance(list(path.values())[0], Path):
+        #         data, file_size, xml_name = 
 
-            # If the type of value is a dictionary the xml-file
-            # is in a ZipFile which is inside another ZipFile.
-            # In such cases, the path stucture is:
-            # {"outermost_zipfile_path.zip": {"inner_zipfile.zip": "transxchange.xml"}}
-            elif isinstance(list(path.values())[0], dict):
-                data, file_size, xml_name = read_xml_inside_nested_zip(path)
-            else:
-                raise TypeError("Expected Path or dict[str, Path] for file in zip")
-        else:
-            raise TypeError(
-                f"Expected Path or dict[str, Path | dict[str, Path]] for element {idx}, got {type(path)}"
-            )
+        #     # If the type of value is a dictionary the xml-file
+        #     # is in a ZipFile which is inside another ZipFile.
+        #     # In such cases, the path stucture is:
+        #     # {"outermost_zipfile_path.zip": {"inner_zipfile.zip": "transxchange.xml"}}
+        #     elif isinstance(list(path.values())[0], dict):
+        #         raise NotImplementedError("Nested zip files not yet supported.")
+        #         # data, file_size, xml_name = read_xml_inside_nested_zip(path)
+        #     else:
+        #         raise TypeError("Expected Path or dict[str, Path] for file in zip")
+        # else:
+        #     raise TypeError(
+        #         f"Expected Path or dict[str, Path | dict[str, Path]] for element {idx}, got {type(path)}"
+        #     )
 
         # Filesize
         size = round((file_size / 1000000), 1)
@@ -112,10 +113,6 @@ def process_files(parallel: Workload) -> None:
 
         # Parse stops
         stop_data = get_stops(data)
-
-        if stop_data is None:
-            print("Did not found any valid stops. Skipping..")
-            continue
 
         # Parse agency
         agency = get_agency(data)
@@ -180,9 +177,9 @@ def convert(
     input_filepath: StrPath,
     output_filepath: StrPath,
     append_to_existing: bool = False,
-    worker_cnt: int | None = None,
+    worker_cnt: int = 1,
     file_size_limit: int = 2000,
-):
+) -> None:
     """
     Converts TransXchange formatted schedule data into GTFS feed.
 
@@ -217,6 +214,10 @@ def convert(
 
     # Retrieve all TransXChange files
     files = list(get_xml_paths(input_filepath))
+
+    if not files:
+        print("No files to process! Exiting.", file=sys.stderr)
+        return
 
     # Create workers
     if worker_cnt > 1:

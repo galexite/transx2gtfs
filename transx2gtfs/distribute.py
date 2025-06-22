@@ -21,17 +21,13 @@ def create_workers(
     """Create workers for multiprocessing"""
 
     # Distribute the process into all cores
-    if worker_cnt is not None and isinstance(worker_cnt, int):
+    if worker_cnt is not None:
         core_cnt = worker_cnt
     elif worker_cnt is None:
         if cpu_count() == 1:
             core_cnt = cpu_count()
         else:
             core_cnt = cpu_count() - 1
-    else:
-        assert isinstance(worker_cnt, int), (
-            "The number of workers should be passed as an integer value."
-        )
 
     # File count
     file_cnt = len(input_files)

@@ -28,7 +28,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "-j",
         "--workers",
-        default=None,
+        default=1,
         type=int,
         help="Number of workers to use when processing the data",
     )

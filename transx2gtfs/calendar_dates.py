@@ -2,38 +2,20 @@ import pandas as pd
 from transx2gtfs.bank_holidays import get_bank_holiday_dates
 import warnings
 
+from transx2gtfs.dataio import XMLElement
+from transx2gtfs.xml import NS
 
-def get_service_calendar_dates_exceptions(data):
-    """Parses calendar dates exception info from TransXChange VehicleJourney element"""
-    try:
-        non_operative_days = data.TransXChange.Services.Service.OperatingProfile.BankHolidayOperation.DaysOfNonOperation.get_elements()
-        weekdays = []
-        for elem in non_operative_days:
-            weekdays.append(elem._name)
-        if len(weekdays) == 1:
-            return weekdays[0]
-        else:
-            return "|".join(weekdays)
-    except:
+
+def get_non_operation_days(data: XMLElement) -> str | None:
+    """
+    Get days of non-operation.
+    """
+
+    non_operation_days = data.findall("./txc:OperatingProfile/txc:BankHolidayOperation/txc:DaysOfNonOperation/*", NS)
+    if not non_operation_days:
         return None
 
-
-def get_calendar_dates_exceptions(vehicle_journey_element):
-    """Parses calendar dates exception info from TransXChange VehicleJourney element"""
-    j = vehicle_journey_element
-    try:
-        non_operative_days = (
-            j.OperatingProfile.BankHolidayOperation.DaysOfNonOperation.get_elements()
-        )
-        weekdays = []
-        for elem in non_operative_days:
-            weekdays.append(elem._name)
-        if len(weekdays) == 1:
-            return weekdays[0]
-        else:
-            return "|".join(weekdays)
-    except:
-        return None
+    return "|".join(weekday.tag for weekday in non_operation_days)
 
 
 def get_calendar_dates(gtfs_info):

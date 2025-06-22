@@ -1,5 +1,5 @@
+from collections.abc import Generator
 from pathlib import Path
-import time
 import urllib.request
 from filelock import FileLock
 import pandas as pd
@@ -7,18 +7,16 @@ import pyproj
 import warnings
 import urllib
 
+from transx2gtfs.dataio import XMLTree, XMLElement
+from transx2gtfs.xml import NS
+
 
 _NAPTAN_CSV_URL = "https://beta-naptan.dft.gov.uk/Download/National/csv"
 
 _CACHE_KEY = "transx2gtfs"
 _CACHE_DIR = Path.home() / ".cache" / _CACHE_KEY
-_CACHED_STOPS_CSV = _CACHE_DIR / "stops.csv"
-_CACHED_STOPS_CSV_LOCK = _CACHE_DIR / "stops.csv.lock"
-
-
-def _delete_cached_naptan_stops_csv() -> None:
-    with FileLock(_CACHED_STOPS_CSV_LOCK):
-        _CACHED_STOPS_CSV.unlink(missing_ok=True)
+_CACHED_STOPS_CSV = _CACHE_DIR / "Stops.csv"
+_CACHED_STOPS_CSV_LOCK = _CACHE_DIR / "Stops.csv.lock"
 
 
 def _get_or_download_naptan_stops_csv() -> Path:
@@ -32,6 +30,7 @@ def _get_or_download_naptan_stops_csv() -> Path:
             if stops_csv_is_ok():
                 return _CACHED_STOPS_CSV
             stops_csv_tmp = _CACHE_DIR / "stops.csv.tmp"
+            print(f"Retrieving Stops.csv from {_NAPTAN_CSV_URL}...")
             urllib.request.urlretrieve(_NAPTAN_CSV_URL, stops_csv_tmp)
             stops_csv_tmp.rename(_CACHED_STOPS_CSV)
     return _CACHED_STOPS_CSV
@@ -69,7 +68,7 @@ def read_naptan_stops(naptan_fp: Path | None = None) -> pd.DataFrame:
     return stops
 
 
-def _get_tfl_style_stops(data):
+def _get_tfl_style_stops(stop_points: XMLElement) -> pd.DataFrame:
     """"""
     # Helper projections for transformations
     # Define the projection
@@ -89,12 +88,18 @@ def _get_tfl_style_stops(data):
     naptan_stops = read_naptan_stops()
 
     # Iterate over stop points
-    for p in data.TransXChange.StopPoints.StopPoint:
+    for point in stop_points.iterfind("./txc:StopPoints/txc:StopPoint", NS):
         # Name of the stop
-        stop_name = p.Descriptor.CommonName.cdata
+        stop_name_el = point.find("./txc:Descriptor/txc:CommonName", NS)
+        assert stop_name_el is not None, "No CommonName for StopPoint"
+        stop_name = stop_name_el.text
+        assert stop_name, "Empty CommonName for StopPoint"
 
         # Stop_id
-        stop_id = p.AtcoCode.cdata
+        stop_id_el = point.find("txc:AtcoCode", NS)
+        assert stop_id_el is not None, "No AtcoCode for StopPoint"
+        stop_id = stop_id_el.text
+        assert stop_id, "Empty AtcoCode for StopPoint"
 
         # Get stop info
         stop = naptan_stops.loc[naptan_stops[_stop_id_col] == stop_id]
@@ -118,8 +123,16 @@ def _get_tfl_style_stops(data):
                     #   - WGS84 (epsg:4326)
                     # Detected epsg
                     detected_epsg = None
-                    x = float(p.Place.Location.Easting.cdata)
-                    y = float(p.Place.Location.Northing.cdata)
+                    x_el = point.find("./txc:Place/txc:Location/txc:Easting", NS)
+                    assert x_el is not None
+                    x_str = x_el.text
+                    assert x_str
+                    x = float(x_str)
+                    y_el = point.find("./txc:Place/txc:Location/txc:Northing", NS)
+                    assert y_el is not None
+                    y_str = y_el.text
+                    assert y_str
+                    y = float(y_str)
 
                     # Detect the most probable CRS at the first iteration
                     if detected_epsg is None:
@@ -131,17 +144,17 @@ def _get_tfl_style_stops(data):
 
                     # Convert point coordinates to WGS84 if they are in OSGB36
                     if detected_epsg == 7405:
-                        x, y = pyproj.transform(p1=osgb36, p2=wgs84, x=x, y=y)
+                        x, y, _, _ = pyproj.transform(p1=osgb36, p2=wgs84, x=x, y=y)
 
                     # Create row
-                    stop = dict(
-                        stop_id=stop_id,
-                        stop_code=None,
-                        stop_name=stop_name,
-                        stop_lat=y,
-                        stop_lon=x,
-                        stop_url=None,
-                    )
+                    stop = pd.Series({
+                        "stop_id": stop_id,
+                        "stop_code": None,
+                        "stop_name": stop_name,
+                        "stop_lat": y,
+                        "stop_lon": x,
+                        "stop_url": None,
+                    })
 
                 except Exception:
                     warnings.warn(
@@ -160,63 +173,40 @@ def _get_tfl_style_stops(data):
     return stop_data
 
 
-def _get_txc_21_style_stops(data):
-    # Attributes
-    _stop_id_col = "stop_id"
-
-    # Container
-    stop_data = pd.DataFrame()
-
+def _get_txc_21_style_stops(stop_points: XMLElement) -> pd.DataFrame:
     # Get stop database
     naptan_stops = read_naptan_stops()
 
-    # Iterate over stop points using TransXchange version 2.1
-    for p in data.TransXChange.StopPoints.AnnotatedStopPointRef:
-        # Stop_id
-        stop_id = p.StopPointRef.cdata
+    def gen_stop_ids() -> Generator[str, None, None]:
+        # Iterate over stop points using TransXchange version 2.1
+        for point in stop_points.iterfind("./txc:AnnotatedStopPointRef", NS):
+            # Stop_id
+            stop_ref_el = point.find("txc:StopPointRef", NS)
+            assert stop_ref_el is not None, "Invalid AnnotatedStopPointRef"
+            stop_id = stop_ref_el.text
+            assert stop_id, "Empty StopPointRef"
+            yield stop_id
 
-        # Get stop info
-        stop = naptan_stops.loc[naptan_stops[_stop_id_col] == stop_id]
+    stop_ids = list(gen_stop_ids())
 
-        if len(stop) == 0:
-            # Try first to refresh the Stop data
-            # _delete_cached_naptan_stops_csv()
-            naptan_stops = read_naptan_stops()
-            stop = naptan_stops.loc[naptan_stops[_stop_id_col] == stop_id]
-
-            # If it could still not be found warn and skip
-            if len(stop) == 0:
-                warnings.warn(
-                    "Did not find a NaPTAN stop for '%s'" % stop_id,
-                    UserWarning,
-                    stacklevel=2,
-                )
-                continue
-
-        elif len(stop) > 1:
-            raise ValueError("Had more than 1 stop with identical stop reference.")
-
-        # Add to container
-        stop_data = pd.concat([stop_data, stop])
-
-    return stop_data
+    # Get stop info
+    return naptan_stops[naptan_stops["stop_id"].isin(stop_ids)] # type: ignore
 
 
-def get_stops(data):
+def get_stops(data: XMLTree) -> pd.DataFrame:
     """Parse stop data from TransXchange elements"""
 
-    if "StopPoint" in data.TransXChange.StopPoints.__dir__():
-        stop_data = _get_tfl_style_stops(data)
-    elif "AnnotatedStopPointRef" in data.TransXChange.StopPoints.__dir__():
-        stop_data = _get_txc_21_style_stops(data)
-    else:
+    stop_points = data.find("txc:StopPoints", NS)
+    if stop_points is None:
         raise ValueError(
-            "Did not find tag for Stop data in TransXchange xml. "
-            "Could not parse Stop information from the TransXchange."
+            "No StopPoints element. Could not parse stop information."
         )
 
-    # Check that stops were found
-    if len(stop_data) == 0:
-        return None
+    if stop_points.find("txc:StopPoint", NS) is not None:
+        stop_data = _get_tfl_style_stops(stop_points)
+    elif stop_points.find("txc:AnnotatedStopPointRef", NS):
+        stop_data = _get_txc_21_style_stops(stop_points)
+    else:
+        raise ValueError("No StopPoint or AnnotatedStopPointRef elements.")
 
     return stop_data
