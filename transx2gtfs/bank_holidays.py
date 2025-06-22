@@ -63,11 +63,12 @@ def get_bank_holiday_dates(gtfs_info: pd.DataFrame) -> list[str]:
 
     # Get start and end date of the GTFS feed
     start_date_min = datetime.strptime(cast(str, gtfs_info["start_date"].min()), "%Y%m%d")
-    end_date_max = datetime.strptime(cast(str, gtfs_info["end_date"].max()), "%Y%m%d")
+    end_date = cast(str | float, gtfs_info["end_date"].max(skipna=True))
+    end_date_max = datetime.strptime(end_date, "%Y%m%d") if isinstance(end_date, str) else None
 
     # Select bank holidays that fit the time range
     return [
         bh.date.strftime("%Y%m%d")
         for bh in bank_holidays
-        if start_date_min <= bh.date and end_date_max >= bh.date
+        if start_date_min <= bh.date and (end_date_max is None or end_date_max >= bh.date)
     ]
