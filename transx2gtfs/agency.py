@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from transx2gtfs.dataio import XMLTree
-from transx2gtfs.xml import NS
+from transx2gtfs.util.xml import NS, XMLTree
 
 _OPERATOR_URLS = {
     "OId_LUL": "https://tfl.gov.uk/maps/track/tube",

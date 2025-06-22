@@ -1,18 +1,18 @@
-from typing import cast
+from typing import Literal, cast
 import pandas as pd
 
 
-def get_direction(direction_id):
+def get_direction(direction_id: str) -> Literal[0] | Literal[1]:
     """Return boolean direction id"""
     if direction_id == "inbound":
         return 0
     elif direction_id == "outbound":
         return 1
-    else:
-        raise ValueError("Cannot determine direction from %s" % direction_id)
+
+    raise ValueError(f"Cannot determine direction from {direction_id}")
 
 
-def get_stop_times(gtfs_info):
+def get_stop_times(gtfs_info: pd.DataFrame) -> pd.DataFrame:
     """Extract stop_times attributes from GTFS info DataFrame"""
     stop_times_cols = [
         "trip_id",
@@ -35,17 +35,16 @@ def get_stop_times(gtfs_info):
         stop_times[col] = stop_times[col].astype(int)
 
     # If there is only a single sequence for a trip, do not export it
-    grouped = stop_times.groupby("trip_id")
+    grouped = stop_times.groupby("trip_id")  # type: ignore
     filtered_stop_times = pd.DataFrame()
     for idx, group in grouped:
         if len(group) > 1:
-            filtered_stop_times = filtered_stop_times.append(
-                group, ignore_index=True, sort=False
+            filtered_stop_times = pd.concat(
+                [filtered_stop_times, group], ignore_index=True, sort=False
             )
         else:
             print(
-                "Trip '%s' does not include a sequence of stops, excluding from GTFS."
-                % idx
+                f"Trip {idx} does not include a sequence of stops, excluding from GTFS."
             )
 
     return filtered_stop_times
@@ -61,10 +60,10 @@ def generate_service_id(stop_times: pd.DataFrame) -> pd.DataFrame:
     calendar_info = stop_times.drop_duplicates(subset=["vehicle_journey_id"])
 
     # Group by weekdays
-    calendar_groups = calendar_info.groupby("weekdays") # type: ignore
+    calendar_groups = calendar_info.groupby("weekdays")  # type: ignore
 
     # Iterate over groups and create a service_id
-    for weekday, cgroup in calendar_groups:
+    for _, cgroup in calendar_groups:
         # Parse all vehicle journey ids
         vehicle_journey_ids = cast(list[str], cgroup["vehicle_journey_id"].to_list())
 
@@ -79,6 +78,6 @@ def generate_service_id(stop_times: pd.DataFrame) -> pd.DataFrame:
 
         # Update stop_times service_id
         stop_times.loc[
-            stop_times["vehicle_journey_id"].isin(vehicle_journey_ids), "service_id" # type: ignore
+            stop_times["vehicle_journey_id"].isin(vehicle_journey_ids), "service_id"  # type: ignore
         ] = service_id
     return stop_times

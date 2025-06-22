@@ -14,8 +14,8 @@ class Workload:
 
 def create_workers(
     input_files: list[Path | dict[str, Path]],
+    gtfs_db: Path,
     worker_cnt: int | None = None,
-    gtfs_db: Path | None = None,
     file_size_limit: int = 1000,
 ) -> list[Workload]:
     """Create workers for multiprocessing"""

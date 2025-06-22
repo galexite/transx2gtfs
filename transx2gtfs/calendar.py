@@ -1,7 +1,6 @@
 import pandas as pd
 
-from transx2gtfs.dataio import XMLElement
-from transx2gtfs.xml import NS
+from transx2gtfs.util.xml import NS, XMLElement
 
 
 def get_weekday_info(data: XMLElement) -> str | None:
@@ -11,14 +10,16 @@ def get_weekday_info(data: XMLElement) -> str | None:
     This is used if VehicleJourney does not contain the information.
     """
 
-    weekdays = data.findall("./txc:OperatingProfile/txc:RegularDayType/txc:DaysOfWeek/*", NS)
+    weekdays = data.findall(
+        "./txc:OperatingProfile/txc:RegularDayType/txc:DaysOfWeek/*", NS
+    )
     if not weekdays:
         return None
 
     return "|".join(weekday.tag.rsplit("}", maxsplit=1)[1] for weekday in weekdays)
 
 
-def parse_day_range(dayinfo):
+def parse_day_range(dayinfo: str) -> pd.DataFrame:
     """Parse day range from TransXChange DayOfWeek element"""
     # Converters
     weekday_to_num = {
@@ -41,8 +42,7 @@ def parse_day_range(dayinfo):
     }
 
     # Containers
-    active_days = []
-    day_info = pd.DataFrame()
+    active_days: list[int] = []
 
     # Process 'weekend'
     if "weekend" in dayinfo.strip().lower():
@@ -82,14 +82,13 @@ def parse_day_range(dayinfo):
             active = 1
         else:
             active = 0
-        row[daycol] = active
+        row[daycol] = [active]
 
     # Generate DF
-    day_info = day_info.append(row, ignore_index=True, sort=False)
-    return day_info
+    return pd.DataFrame(row)
 
 
-def get_calendar(gtfs_info):
+def get_calendar(gtfs_info: pd.DataFrame):
     """Parse calendar attributes from GTFS info DataFrame"""
     # Parse calendar
     use_cols = ["service_id", "weekdays", "start_date", "end_date"]
@@ -114,7 +113,9 @@ def get_calendar(gtfs_info):
         dayrow["end_date"] = row["end_date"]
 
         # Add to container
-        gtfs_calendar = gtfs_calendar.append(dayrow, ignore_index=True, sort=False)
+        gtfs_calendar = pd.concat(
+            [gtfs_calendar, dayrow], ignore_index=True, sort=False
+        )
 
     # Fix column order
     col_order = [

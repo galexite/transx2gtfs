@@ -1,39 +1,14 @@
 from collections.abc import Generator
 from pathlib import Path
-import urllib.request
-from filelock import FileLock
 import pandas as pd
 import pyproj
 import warnings
-import urllib
 
-from transx2gtfs.dataio import XMLTree, XMLElement
-from transx2gtfs.xml import NS
+from .util.network import download_cached
+from .util.xml import NS, XMLTree, XMLElement
 
 
 _NAPTAN_CSV_URL = "https://beta-naptan.dft.gov.uk/Download/National/csv"
-
-_CACHE_KEY = "transx2gtfs"
-_CACHE_DIR = Path.home() / ".cache" / _CACHE_KEY
-_CACHED_STOPS_CSV = _CACHE_DIR / "Stops.csv"
-_CACHED_STOPS_CSV_LOCK = _CACHE_DIR / "Stops.csv.lock"
-
-
-def _get_or_download_naptan_stops_csv() -> Path:
-    _CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-    def stops_csv_is_ok():
-        return _CACHED_STOPS_CSV.exists()
-
-    if not stops_csv_is_ok():
-        with FileLock(_CACHED_STOPS_CSV_LOCK):
-            if stops_csv_is_ok():
-                return _CACHED_STOPS_CSV
-            stops_csv_tmp = _CACHE_DIR / "stops.csv.tmp"
-            print(f"Retrieving Stops.csv from {_NAPTAN_CSV_URL}...")
-            urllib.request.urlretrieve(_NAPTAN_CSV_URL, stops_csv_tmp)
-            stops_csv_tmp.rename(_CACHED_STOPS_CSV)
-    return _CACHED_STOPS_CSV
 
 
 def read_naptan_stops(naptan_fp: Path | None = None) -> pd.DataFrame:
@@ -41,9 +16,9 @@ def read_naptan_stops(naptan_fp: Path | None = None) -> pd.DataFrame:
     Reads NaPTAN stops from temp. If the Stops do not exist in the temp, downloads the data.
     """
     if naptan_fp is None:
-        naptan_fp = _get_or_download_naptan_stops_csv()
+        naptan_fp = download_cached(_NAPTAN_CSV_URL, "Stops.csv")
 
-    stops = pd.read_csv(naptan_fp, low_memory=False)
+    stops = pd.read_csv(naptan_fp, low_memory=False) # type: ignore
 
     # Rename required columns into GTFS format
     stops = stops.rename(

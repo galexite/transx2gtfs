@@ -74,7 +74,11 @@ def process_files(parallel: Workload) -> None:
 
     for idx, path in enumerate(files):
         # If type is string, it is a direct filepath to XML
-        data, file_size, xml_name = read_unpacked_xml(path) if isinstance(path, Path) else read_xml_inside_zip(path)
+        data, file_size, xml_name = (
+            read_unpacked_xml(path)
+            if isinstance(path, Path)
+            else read_xml_inside_zip(path)
+        )
 
         # If the type is dictionary contents are in a zip
         # elif isinstance(path, dict):
@@ -82,7 +86,7 @@ def process_files(parallel: Workload) -> None:
         #     # from the given Zipfile path, with following structure:
         #     # {"transxchange_name.xml" : "/home/data/myzipfile.zip"}
         #     if isinstance(list(path.values())[0], Path):
-        #         data, file_size, xml_name = 
+        #         data, file_size, xml_name =
 
         #     # If the type of value is a dictionary the xml-file
         #     # is in a ZipFile which is inside another ZipFile.
@@ -133,7 +137,7 @@ def process_files(parallel: Workload) -> None:
         calendar_dates = get_calendar_dates(gtfs_info)
 
         # Parse routes
-        routes = get_routes(gtfs_info=gtfs_info, data=data)
+        routes = get_routes(gtfs_info, data)
 
         # Initialize database connection
         conn = sqlite3.connect(gtfs_db)
@@ -222,10 +226,10 @@ def convert(
     # Create workers
     if worker_cnt > 1:
         workers = create_workers(
-            input_files=files,
+            files,
+            gtfs_db,
             worker_cnt=worker_cnt,
             file_size_limit=file_size_limit,
-            gtfs_db=gtfs_db,
         )
 
         # Create Pool

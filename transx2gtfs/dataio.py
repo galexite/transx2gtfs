@@ -8,13 +8,11 @@ import csv
 import os
 import xml.etree.ElementTree as ET
 
+
 if TYPE_CHECKING:
+    from transx2gtfs.util.xml import XMLTree
     from _typeshed import StrPath
     from collections.abc import Generator
-
-
-type XMLElement = ET.Element[str]
-type XMLTree = ET.ElementTree[XMLElement]
 
 
 def get_paths_from_zip(zip_filepath: Path) -> Generator[dict[str, Path], None, None]:

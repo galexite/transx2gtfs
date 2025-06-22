@@ -1,13 +1,11 @@
-def get_trip_headsign(data, service_ref):
-    """Parse trip headsign based on service reference id"""
-    service = data.TransXChange.Services.Service
-    if service.ServiceCode == service_ref:
-        return service.Description.cdata
-    else:
-        raise ValueError("Could not find trip headsign for", service_ref)
+from typing import TYPE_CHECKING
 
 
-def get_trips(gtfs_info):
+if TYPE_CHECKING:
+    import pandas as pd
+
+
+def get_trips(gtfs_info: pd.DataFrame) -> pd.DataFrame:
     """Extract trips attributes from GTFS info DataFrame"""
     trip_cols = ["route_id", "service_id", "trip_id", "trip_headsign", "direction_id"]
 
