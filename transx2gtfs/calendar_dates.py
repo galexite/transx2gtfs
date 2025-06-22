@@ -39,7 +39,7 @@ _KNOWN_HOLIDAYS = {
 }
 
 
-def get_calendar_dates(gtfs_info: pd.DataFrame) -> pd.DataFrame:
+def get_calendar_dates(gtfs_info: pd.DataFrame) -> pd.DataFrame | None:
     """
     Parse calendar dates attributes from GTFS info DataFrame.
 
@@ -75,7 +75,7 @@ def get_calendar_dates(gtfs_info: pd.DataFrame) -> pd.DataFrame:
         return None
 
     # Return None if no bank holiday happens to be during the operative period
-    if bank_holidays is None:
+    if not bank_holidays:
         return None
 
     # Otherwise produce calendar_dates data
@@ -89,7 +89,7 @@ def get_calendar_dates(gtfs_info: pd.DataFrame) -> pd.DataFrame:
 
     # The exception will always be indicating non-operative service (value 2)
     calendar_info["exception_type"] = 2
-    
+
     # Container for calendar_dates
     calendar_info.apply(update_calendar_info)
 
