@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass
-from typing import Any, overload
+from typing import Any, cast, overload
 import pandas as pd
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, date
 from transx2gtfs.calendar import get_weekday_info
 from transx2gtfs.calendar_dates import (
     get_non_operation_days,
@@ -21,10 +23,16 @@ class Service:
 
 
 def get_last_stop_time_info(
-    link: XMLElement, hour, current_date, current_dt, duration, stop_num, boarding_time
-) -> dict[str, str]:
+    link: XMLElement,
+    hour: int,
+    current_date: date,
+    current_dt: datetime,
+    duration: int,
+    stop_num: int,
+    boarding_time: int,
+) -> pd.DataFrame:
     # Parse stop_id for TO
-    stop_id = link.To.StopPointRef.cdata
+    stop_id = _text(link, "./txc:To/txc:StopPointRef")
     # Get arrival time for the last one
     current_dt = current_dt + timedelta(seconds=duration)
     departure_dt = current_dt + timedelta(seconds=boarding_time)
@@ -35,26 +43,25 @@ def get_last_stop_time_info(
     arrival_hour, departure_hour = get_midnight_formatted_times(
         arrival_hour, departure_hour, hour, current_date, current_dt, departure_dt
     )
-    # Convert to string
-    arrival_t = "{arrival_hour}:{minsecs}".format(
-        arrival_hour=str(arrival_hour).zfill(2), minsecs=current_dt.strftime("%M:%S")
-    )
-    departure_t = "{departure_hour}:{minsecs}".format(
-        departure_hour=str(departure_hour).zfill(2),
-        minsecs=departure_dt.strftime("%M:%S"),
-    )
 
-    return dict(
-        stop_id=stop_id,
-        stop_sequence=stop_num,
-        arrival_time=arrival_t,
-        departure_time=departure_t,
+    return pd.DataFrame(
+        {
+            "stop_id": [stop_id],
+            "stop_sequence": [stop_num],
+            "arrival_time": [f"{arrival_hour:02}:{current_dt.strftime("%M:%S")}"],
+            "departure_time": [f"{departure_hour:02}:{departure_dt.strftime("%M:%S")}"],
+        }
     )
 
 
 def get_midnight_formatted_times(
-    arrival_hour, departure_hour, hour, current_date, current_dt, departure_dt
-):
+    arrival_hour: int,
+    departure_hour: int,
+    hour: int,
+    current_date: date,
+    current_dt: datetime,
+    departure_dt: datetime,
+) -> tuple[int, int]:
     # If the arrival / departure hour is smaller than the initialized hour,
     # it means that the trip is extending to the next day. In that case,
     # the hour info should be extending to numbers over 24. E.g. if trip starts
@@ -91,15 +98,17 @@ def get_vehicle_journeys(journeys: Iterator[XMLElement]) -> pd.DataFrame:
     """Process vehicle journeys"""
 
     # Iterate over VehicleJourneys
-    def process_vehicle_journey(journey: XMLElement) -> list:
+    def process_vehicle_journey(
+        journey: XMLElement,
+    ) -> tuple[str, str, str, str | None, str | None]:
         # Get service reference
-        service_ref = journey.ServiceRef.cdata
+        service_ref = _text(journey, "txc:ServiceRef")
 
         # Journey pattern reference
-        journey_pattern_id = journey.JourneyPatternRef.cdata
+        journey_pattern_id = _text(journey, "txc:JourneyPatternRef")
 
         # Vehicle journey id ==> will be used to generate service_id (identifies operative weekdays)
-        vehicle_journey_id = journey.VehicleJourneyCode.cdata
+        vehicle_journey_id = _text(journey, "txc:VehicleJourneyCode")
 
         # Parse weekday operation times from VehicleJourney
         weekdays = get_weekday_info(journey)
@@ -108,25 +117,50 @@ def get_vehicle_journeys(journeys: Iterator[XMLElement]) -> pd.DataFrame:
         non_operative_days = get_non_operation_days(journey)
 
         # Create gtfs_info row
-        return [
+        return (
             vehicle_journey_id,
             service_ref,
             journey_pattern_id,
             weekdays,
             non_operative_days,
-        ]
+        )
 
-    return pd.DataFrame.from_records(
+    return pd.DataFrame.from_records(  # type: ignore
         (process_vehicle_journey(journey) for journey in journeys),
         columns=_VEHICLE_JOURNEYS_COLUMNS,
     )
 
 
+_SECTION_TIMES_COLS = [
+    "stop_id",
+    "stop_sequence",
+    "timepoint",
+    "arrival_time",
+    "departure_time",
+    "route_link_ref",
+    "agency_id",
+    "trip_id",
+    "route_id",
+    "vehicle_journey_id",
+    "service_ref",
+    "direction_id",
+    "line_name",
+    "travel_mode",
+    "trip_headsign",
+    "vehicle_type",
+    "start_date",
+    "end_date",
+    "weekdays",
+    "non_operative_days",
+]
+
+
 def process_vehicle_journeys(
-    journeys: Iterator[XMLElement],
-    sections: Iterator[XMLElement],
-    services: list[Service],
+    journeys: list[XMLElement],
+    sections: list[XMLElement],
+    service: Service,
 ) -> pd.DataFrame:
+    journey_cnt = len(journeys)
     # Container for gtfs_info
     gtfs_info = pd.DataFrame()
 
@@ -142,37 +176,31 @@ def process_vehicle_journeys(
         if i != 0 and i % 50 == 0:
             print("Processed %s / %s journeys." % (i, journey_cnt))
         # Get service reference
-        service_ref = journey.ServiceRef.cdata
+        service_ref = _text(journey, "txc:ServiceRef")
 
         # Journey pattern reference
-        journey_pattern_id = journey.JourneyPatternRef.cdata
+        journey_pattern_id = _text(journey, "txc:JourneyPatternRef")
 
         # Vehicle journey id ==> will be used to generate service_id (identifies operative weekdays)
-        vehicle_journey_id = journey.VehicleJourneyCode.cdata
+        vehicle_journey_id = _text(journey, "txc:VehicleJourneyCode")
 
         # Parse weekday operation times from VehicleJourney
-        weekdays = get_weekday_info(journey)
-
-        # If weekday operation times were not available from VehicleJourney, use Services.Service
-        if weekdays is None:
-            weekdays = service_operative_days
+        operation_days = get_weekday_info(journey) or service.operation_days
 
         # Parse calendar dates (exceptions in operation)
-        non_operative_days = get_non_operation_days(journey)
-
-        # If exceptions were not available try using information from Services.Service
-        if non_operative_days is None:
-            non_operative_days = service_non_operative_days
+        non_operative_days = (
+            get_non_operation_days(journey) or service.non_operation_days
+        )
 
         # Select service journey patterns for given service id
-        service_journey_patterns = service_jp_info.loc[
-            service_jp_info["journey_pattern_id"] == journey_pattern_id
+        service_journey_patterns = service.journey_patterns.loc[
+            service.journey_patterns["journey_pattern_id"] == journey_pattern_id
         ]
 
         # Get Journey Pattern Section reference
-        jp_section_references = service_journey_patterns[
-            "jp_section_reference"
-        ].to_list()
+        jp_section_references = cast(
+            list[str], service_journey_patterns["jp_section_reference"].to_list()
+        )
 
         # Parse direction, line_name, travel mode, trip_headsign, vehicle_type, agency_id
         cols = [
@@ -203,149 +231,153 @@ def process_vehicle_journeys(
         travel_mode = int(travel_mode)
 
         # Get departure time
-        departure_time = journey.DepartureTime.cdata
-        hour, minute, second = departure_time.split(":")
-        hour, minute, second = int(hour), int(minute), int(second)
+        departure_time = _text(journey, "txc:DepartureTime")
+        hour, minute, _ = [int(s) for s in departure_time.split(":")]
 
         current_dt = None
+        section_times = None
 
         # Iterate over a single departure section
         stop_num = 1
         for section in sections:
             # Section reference
-            section_id = section.get_attribute("id")
+            section_id = section.get("id")
+            assert section_id
 
             # Generate trip_id (same section id might occur with different calendar info,
             # hence attach weekday info as part of trip_id)
-            trip_id = "%s_%s_%s%s" % (
-                section_id,
-                weekdays,
-                str(hour).zfill(2),
-                str(minute).zfill(2),
-            )
+            trip_id = f"{section_id}_{operation_days}_{hour:02}{minute:02}"
 
             # Check that section-ids match
             if section_id not in jp_section_references:
                 continue
 
-            timing_links = section.JourneyPatternTimingLink
+            links = section.findall("txc:JourneyPatternTimingLink", NS)
 
-            section_times = pd.DataFrame()
-
-            # For the given departure section calculate arrival/departure times
-            # for all possible trip departure times
-            for link in timing_links:
+            def get_duration(link: XMLElement) -> int:
                 # Get leg runtime code
-                runtime = link.RunTime.cdata
+                runtime = _text(link, "txc:RunTime")
 
                 # Parse duration in seconds
-                duration = int(parse_runtime_duration(runtime=runtime))
+                return int(parse_runtime_duration(runtime))
 
-                # Generate datetime for the start time
-                if current_dt is None:
-                    # On the first stop arrival and departure time should be identical
-                    current_dt = datetime.combine(
-                        current_date, time(int(hour), int(minute))
+            def gen_timing_links() -> Generator[tuple[Any, ...], None, None]:
+                nonlocal current_dt, stop_num
+
+                # For the given departure section calculate arrival/departure times
+                # for all possible trip departure times
+                for link in links:
+                    duration = get_duration(link)
+
+                    # Generate datetime for the start time
+                    if current_dt is None:
+                        # On the first stop arrival and departure time should be identical
+                        current_dt = datetime.combine(current_date, time(hour, minute))
+                        departure_dt = current_dt
+                        # Timepoint
+                        timepoint = 1
+
+                    else:
+                        current_dt = current_dt + timedelta(seconds=duration)
+
+                        # Timepoint
+                        timepoint = 0
+
+                        departure_dt = current_dt + timedelta(seconds=boarding_time)
+
+                    # Get hour info
+                    arrival_hour = current_dt.hour
+                    departure_hour = departure_dt.hour
+
+                    # Ensure trips passing midnight are formatted correctly
+                    arrival_hour, departure_hour = get_midnight_formatted_times(
+                        arrival_hour,
+                        departure_hour,
+                        hour,
+                        current_date,
+                        current_dt,
+                        departure_dt,
                     )
-                    departure_dt = current_dt
-                    # Timepoint
-                    timepoint = 1
 
-                else:
-                    current_dt = current_dt + timedelta(seconds=duration)
+                    # Convert to string
+                    arrival_t = "{arrival_hour}:{minsecs}".format(
+                        arrival_hour=str(arrival_hour).zfill(2),
+                        minsecs=current_dt.strftime("%M:%S"),
+                    )
+                    departure_t = "{departure_hour}:{minsecs}".format(
+                        departure_hour=str(departure_hour).zfill(2),
+                        minsecs=departure_dt.strftime("%M:%S"),
+                    )
 
-                    # Timepoint
-                    timepoint = 0
+                    # Parse stop_id for FROM
+                    stop_id = _text(link, "./txc:From/txc:StopPointRef")
 
-                    departure_dt = current_dt + timedelta(seconds=boarding_time)
+                    # Route link reference
+                    route_link_ref = _text(link, "txc:RouteLinkRef")
 
-                # Get hour info
-                arrival_hour = current_dt.hour
-                departure_hour = departure_dt.hour
+                    # Create gtfs_info row
+                    yield (
+                        stop_id,
+                        stop_num,
+                        timepoint,
+                        arrival_t,
+                        departure_t,
+                        route_link_ref,
+                        agency_id,
+                        trip_id,
+                        route_id,
+                        vehicle_journey_id,
+                        service_ref,
+                        direction_id,
+                        line_name,
+                        travel_mode,
+                        trip_headsign,
+                        vehicle_type,
+                        start_date,
+                        end_date,
+                        operation_days,
+                        non_operative_days,
+                    )
 
-                # Ensure trips passing midnight are formatted correctly
-                arrival_hour, departure_hour = get_midnight_formatted_times(
-                    arrival_hour,
-                    departure_hour,
-                    hour,
-                    current_date,
-                    current_dt,
-                    departure_dt,
-                )
+                    # Update stop number
+                    stop_num += 1
 
-                # Convert to string
-                arrival_t = "{arrival_hour}:{minsecs}".format(
-                    arrival_hour=str(arrival_hour).zfill(2),
-                    minsecs=current_dt.strftime("%M:%S"),
-                )
-                departure_t = "{departure_hour}:{minsecs}".format(
-                    departure_hour=str(departure_hour).zfill(2),
-                    minsecs=departure_dt.strftime("%M:%S"),
-                )
-
-                # Parse stop_id for FROM
-                stop_id = link.From.StopPointRef.cdata
-
-                # Route link reference
-                route_link_ref = link.RouteLinkRef.cdata
-
-                # Create gtfs_info row
-                info = dict(
-                    stop_id=stop_id,
-                    stop_sequence=stop_num,
-                    timepoint=timepoint,
-                    # Duration between stops in seconds (not needed - keep here for reference)
-                    # duration=duration,
-                    arrival_time=arrival_t,
-                    departure_time=departure_t,
-                    route_link_ref=route_link_ref,
-                    agency_id=agency_id,
-                    trip_id=trip_id,
-                    route_id=route_id,
-                    vehicle_journey_id=vehicle_journey_id,
-                    service_ref=service_ref,
-                    direction_id=direction_id,
-                    line_name=line_name,
-                    travel_mode=travel_mode,
-                    trip_headsign=trip_headsign,
-                    vehicle_type=vehicle_type,
-                    start_date=start_date,
-                    end_date=end_date,
-                    weekdays=weekdays,
-                    non_operative_days=non_operative_days,
-                )
-                section_times = section_times.append(
-                    info, ignore_index=True, sort=False
-                )
-
-                # Update stop number
-                stop_num += 1
+            section_times = pd.DataFrame.from_records(gen_timing_links(), columns=_SECTION_TIMES_COLS)  # type: ignore
 
             # After timing links have been iterated over,
             # the last stop needs to be added separately
-            info = get_last_stop_time_info(
-                link, hour, current_date, current_dt, duration, stop_num, boarding_time
+            link = links[-1]
+            assert current_dt is not None
+            last_stop = get_last_stop_time_info(
+                link,
+                hour,
+                current_date,
+                current_dt,
+                get_duration(link),
+                stop_num,
+                boarding_time,
             )
-
-            info["timepoint"] = 0
-            info["route_link_ref"] = route_link_ref
-            info["agency_id"] = agency_id
-            info["trip_id"] = trip_id
-            info["route_id"] = route_id
-            info["vehicle_journey_id"] = vehicle_journey_id
-            info["service_ref"] = service_ref
-            info["direction_id"] = direction_id
-            info["line_name"] = line_name
-            info["travel_mode"] = travel_mode
-            info["trip_headsign"] = trip_headsign
-            info["vehicle_type"] = vehicle_type
-            info["start_date"] = start_date
-            info["end_date"] = end_date
-            info["weekdays"] = weekdays
-            section_times = section_times.append(info, ignore_index=True, sort=False)
+            last_stop["timepoint"] = 0
+            last_stop["route_link_ref"] = _text(link, "txc:RouteLinkRef")
+            last_stop["agency_id"] = agency_id
+            last_stop["trip_id"] = trip_id
+            last_stop["route_id"] = route_id
+            last_stop["vehicle_journey_id"] = vehicle_journey_id
+            last_stop["service_ref"] = service_ref
+            last_stop["direction_id"] = direction_id
+            last_stop["line_name"] = line_name
+            last_stop["travel_mode"] = travel_mode
+            last_stop["trip_headsign"] = trip_headsign
+            last_stop["vehicle_type"] = vehicle_type
+            last_stop["start_date"] = start_date
+            last_stop["end_date"] = end_date
+            last_stop["weekdays"] = operation_days
+            last_stop["non_operative_days"] = non_operative_days
+            section_times = pd.concat([section_times, last_stop], ignore_index=True)
 
         # Add to GTFS DataFrame
-        gtfs_info = gtfs_info.append(section_times, ignore_index=True, sort=False)
+        assert section_times is not None
+        gtfs_info = pd.concat([gtfs_info, section_times], ignore_index=True)
 
     # Generate service_id column into the table
     gtfs_info = generate_service_id(gtfs_info)
@@ -368,10 +400,10 @@ def get_gtfs_info(data: XMLTree) -> pd.DataFrame:
         - Trips: <route_id>, service_id, <trip_id>, (+ optional: trip_headsign, direction_id, trip_shortname)
         - Routes: <route_id>, agency_id, route_type, route_short_name, route_long_name
     """
-    sections = data.iterfind(
+    sections = data.findall(
         "./txc:JourneyPatternSections/txc:JourneyPatternSection", NS
     )
-    journeys = data.iterfind("./txc:VehicleJourneys/txc:VehicleJourney", NS)
+    journeys = data.findall("./txc:VehicleJourneys/txc:VehicleJourney", NS)
 
     # Get all service journey pattern info
     services = [
@@ -384,10 +416,15 @@ def get_gtfs_info(data: XMLTree) -> pd.DataFrame:
     ]
 
     # Process
-    return process_vehicle_journeys(
-        journeys,
-        sections,
-        services,
+    return pd.concat(
+        (
+            process_vehicle_journeys(
+                journeys,
+                sections,
+                service,
+            )
+            for service in services
+        )
     )
 
 
@@ -484,11 +521,11 @@ def get_service_journey_patterns(service: XMLElement) -> pd.DataFrame:
             "%Y%m%d",
         )
         end_date = None
-        if end_date_text := _text(service, "./txc:OperatingPeriod/txc:EndDate", default=None):
+        if end_date_text := _text(
+            service, "./txc:OperatingPeriod/txc:EndDate", default=None
+        ):
             end_date = datetime.strftime(
-                datetime.strptime(
-                    end_date_text, "%Y-%m-%d"
-                ),
+                datetime.strptime(end_date_text, "%Y-%m-%d"),
                 "%Y%m%d",
             )
 

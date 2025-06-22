@@ -11,11 +11,11 @@ def get_weekday_info(data: XMLElement) -> str | None:
     This is used if VehicleJourney does not contain the information.
     """
 
-    reg_weekdays = data.findall("./txc:OperatingProfile/txc:RegularDayType/txc:DaysOfWeek/*", NS)
-    if not reg_weekdays:
+    weekdays = data.findall("./txc:OperatingProfile/txc:RegularDayType/txc:DaysOfWeek/*", NS)
+    if not weekdays:
         return None
 
-    return "|".join(weekday.tag for weekday in reg_weekdays)
+    return "|".join(weekday.tag.rsplit("}", maxsplit=1)[1] for weekday in weekdays)
 
 
 def parse_day_range(dayinfo):

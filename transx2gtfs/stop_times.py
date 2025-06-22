@@ -1,3 +1,4 @@
+from typing import cast
 import pandas as pd
 
 
@@ -50,7 +51,7 @@ def get_stop_times(gtfs_info):
     return filtered_stop_times
 
 
-def generate_service_id(stop_times):
+def generate_service_id(stop_times: pd.DataFrame) -> pd.DataFrame:
     """Generate service_id into stop_times DataFrame"""
 
     # Create column for service_id
@@ -60,12 +61,12 @@ def generate_service_id(stop_times):
     calendar_info = stop_times.drop_duplicates(subset=["vehicle_journey_id"])
 
     # Group by weekdays
-    calendar_groups = calendar_info.groupby("weekdays")
+    calendar_groups = calendar_info.groupby("weekdays") # type: ignore
 
     # Iterate over groups and create a service_id
     for weekday, cgroup in calendar_groups:
         # Parse all vehicle journey ids
-        vehicle_journey_ids = cgroup["vehicle_journey_id"].to_list()
+        vehicle_journey_ids = cast(list[str], cgroup["vehicle_journey_id"].to_list())
 
         # Parse other items
         service_ref = cgroup["service_ref"].unique()[0]
@@ -74,10 +75,10 @@ def generate_service_id(stop_times):
         end_d = cgroup["end_date"].unique()[0]
 
         # Generate service_id
-        service_id = "%s_%s_%s_%s" % (service_ref, start_d, end_d, daygroup)
+        service_id = f"{service_ref}_{start_d}_{end_d}_{daygroup}"
 
         # Update stop_times service_id
         stop_times.loc[
-            stop_times["vehicle_journey_id"].isin(vehicle_journey_ids), "service_id"
+            stop_times["vehicle_journey_id"].isin(vehicle_journey_ids), "service_id" # type: ignore
         ] = service_id
     return stop_times

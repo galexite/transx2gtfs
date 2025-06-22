@@ -15,7 +15,7 @@ def get_non_operation_days(data: XMLElement) -> str | None:
     if not non_operation_days:
         return None
 
-    return "|".join(weekday.tag for weekday in non_operation_days)
+    return "|".join(weekday.tag.rsplit("}",maxsplit=1)[1] for weekday in non_operation_days)
 
 
 def get_calendar_dates(gtfs_info):
