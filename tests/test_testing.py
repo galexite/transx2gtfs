@@ -1,4 +1,4 @@
-from transx2gtfs.data import get_path
+from txc2gtfs.data import get_path
 import pytest
 
 

@@ -1,6 +1,6 @@
 import pandas as pd
 
-from transx2gtfs.util.xml import NS, XMLElement
+from txc2gtfs.util.xml import NS, XMLElement
 
 
 def get_weekday_info(data: XMLElement) -> str | None:

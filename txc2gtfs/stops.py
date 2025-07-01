@@ -35,9 +35,7 @@ def read_naptan_stops(naptan_fp: Path | None = None) -> pd.DataFrame:
     for col in required_cols:
         if col not in stops.columns:
             raise ValueError(
-                "Required column {col} could not be found from stops DataFrame.".format(
-                    col=col
-                )
+                f"Required column {col} could not be found from stops DataFrame."
             )
     stops = stops[required_cols].copy()
     return stops
@@ -133,7 +131,7 @@ def _get_tfl_style_stops(stop_points: XMLElement) -> pd.DataFrame:
 
                 except Exception:
                     warnings.warn(
-                        "Did not find a NaPTAN stop for '%s'" % stop_id,
+                        f"Did not find a NaPTAN stop for '{stop_id}'",
                         UserWarning,
                         stacklevel=2,
                     )

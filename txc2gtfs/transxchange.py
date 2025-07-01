@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from typing import Any, cast
 import pandas as pd
 from datetime import datetime, timedelta, time, date
-from transx2gtfs.calendar import get_weekday_info
-from transx2gtfs.calendar_dates import (
+from txc2gtfs.calendar import get_weekday_info
+from txc2gtfs.calendar_dates import (
     get_non_operation_days,
 )
-from transx2gtfs.stop_times import generate_service_id, get_direction
-from transx2gtfs.routes import get_mode
-from transx2gtfs.util.xml import XMLElement, XMLTree, NS, get_text
+from txc2gtfs.stop_times import generate_service_id, get_direction
+from txc2gtfs.routes import get_mode
+from txc2gtfs.util.xml import XMLElement, XMLTree, NS, get_text
 
 
 @dataclass
@@ -418,14 +418,14 @@ def get_gtfs_info(data: XMLTree) -> pd.DataFrame:
 
     # Process
     return pd.concat(
-        (
+
             process_vehicle_journeys(
                 journeys,
                 sections,
                 service,
             )
             for service in services
-        )
+
     )
 
 

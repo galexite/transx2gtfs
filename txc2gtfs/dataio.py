@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 
 if TYPE_CHECKING:
-    from transx2gtfs.util.xml import XMLTree
+    from txc2gtfs.util.xml import XMLTree
     from _typeshed import StrPath
     from collections.abc import Generator
 
@@ -58,8 +58,8 @@ def read_xml_inside_zip(xml_path: dict[str, Path]) -> tuple[XMLTree, int, str]:
     """
     Reads an XML file which is inside a ZipFile.
     """
-    zip_filepath = list(xml_path.values())[0]
-    filename = list(xml_path.keys())[0]
+    zip_filepath = next(iter(xml_path.values()))
+    filename = next(iter(xml_path.keys()))
     z = ZipFile(zip_filepath)
     file_size = z.getinfo(filename).file_size
     return ET.parse(z.open(filename)), file_size, filename
@@ -190,7 +190,7 @@ def save_to_gtfs_zip(
     # Open stream
     with ZipFile(output_zip_fp, "w") as zf:
         for name, data in gtfs_data.items():
-            fname = "{filename}.txt".format(filename=name)
+            fname = f"{name}.txt"
 
             if len(data) > 0:
                 print("Exporting:", fname)

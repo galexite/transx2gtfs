@@ -5,7 +5,7 @@ import urllib.parse
 from filelock import FileLock
 import urllib.request
 
-_CACHE_KEY = "transx2gtfs"
+_CACHE_KEY = "txc2gtfs"
 _CACHE_DIR = Path.home() / ".cache" / _CACHE_KEY
 _CACHE_LOCK = _CACHE_DIR / ".lock"
 
@@ -19,7 +19,7 @@ def download_cached(url: str, name: str | None = None, *, max_age: timedelta = t
     def cached_file_is_good() -> bool:
         if not cached_file.is_file():
             return False
-        
+
         mtime = datetime.fromtimestamp(cached_file.stat().st_mtime)
         return datetime.now() - mtime <= max_age
 
@@ -31,5 +31,5 @@ def download_cached(url: str, name: str | None = None, *, max_age: timedelta = t
             print(f"Retrieving {name} from {url}...")
             urllib.request.urlretrieve(url, tmp)
             tmp.rename(cached_file)
-    
+
     return cached_file

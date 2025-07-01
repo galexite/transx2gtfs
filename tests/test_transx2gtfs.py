@@ -1,4 +1,4 @@
-from transx2gtfs.data import get_path
+from txc2gtfs.data import get_path
 import pytest
 
 
@@ -28,7 +28,7 @@ def temp_output_filepath():
 
 
 def test_agency_urls():
-    from transx2gtfs.agency import get_agency_url
+    from txc2gtfs.agency import get_agency_url
     import requests
 
     operator_codes = [
@@ -46,16 +46,16 @@ def test_agency_urls():
         url = get_agency_url(code)
 
         req = requests.get(url)
-        assert req.status_code == 200, "Web site '%s' does not exist." % url
+        assert req.status_code == 200, f"Web site '{url}' does not exist."
 
 
 def test_converting_to_gtfs(test_data, temp_output_filepath):
-    import transx2gtfs
+    import txc2gtfs
     import os
     from zipfile import ZipFile
 
     # Do the conversion
-    transx2gtfs.convert(test_data, temp_output_filepath)
+    txc2gtfs.convert(test_data, temp_output_filepath)
 
     # Check that the zip-file was created
     assert os.path.isfile(temp_output_filepath)

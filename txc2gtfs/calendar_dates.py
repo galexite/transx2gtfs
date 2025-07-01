@@ -1,10 +1,10 @@
 from collections.abc import Generator, Iterable
 from typing import cast
 import pandas as pd
-from transx2gtfs.bank_holidays import get_bank_holiday_dates
+from txc2gtfs.bank_holidays import get_bank_holiday_dates
 import warnings
 
-from transx2gtfs.util.xml import NS, XMLElement
+from txc2gtfs.util.xml import NS, XMLElement
 
 
 def get_non_operation_days(data: XMLElement) -> str | None:

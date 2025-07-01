@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Convert transXchange data format to GTFS format.
 
@@ -46,21 +45,21 @@ import sqlite3
 import os
 import multiprocessing
 from typing import TYPE_CHECKING
-from transx2gtfs.stop_times import get_stop_times
-from transx2gtfs.stops import get_stops
-from transx2gtfs.trips import get_trips
-from transx2gtfs.routes import get_routes
-from transx2gtfs.agency import get_agency
-from transx2gtfs.calendar import get_calendar
-from transx2gtfs.calendar_dates import get_calendar_dates
-from transx2gtfs.dataio import generate_gtfs_export, save_to_gtfs_zip, get_xml_paths
-from transx2gtfs.dataio import (
+from txc2gtfs.stop_times import get_stop_times
+from txc2gtfs.stops import get_stops
+from txc2gtfs.trips import get_trips
+from txc2gtfs.routes import get_routes
+from txc2gtfs.agency import get_agency
+from txc2gtfs.calendar import get_calendar
+from txc2gtfs.calendar_dates import get_calendar_dates
+from txc2gtfs.dataio import generate_gtfs_export, save_to_gtfs_zip, get_xml_paths
+from txc2gtfs.dataio import (
     # read_xml_inside_nested_zip,
     read_xml_inside_zip,
     read_unpacked_xml,
 )
-from transx2gtfs.transxchange import get_gtfs_info
-from transx2gtfs.distribute import create_workers, Workload
+from txc2gtfs.transxchange import get_gtfs_info
+from txc2gtfs.distribute import create_workers, Workload
 
 if TYPE_CHECKING:
     from _typeshed import StrPath
@@ -109,9 +108,9 @@ def process_files(parallel: Workload) -> None:
 
         print("=================================================================")
         print(
-            "[%s / %s] Processing TransXChange file: %s" % (idx, len(files), xml_name)
+            f"[{idx} / {len(files)}] Processing TransXChange file: {xml_name}"
         )
-        print("Size: %s MB" % size)
+        print(f"Size: {size} MB")
         # Log start time
         start_t = timeit()
 
@@ -159,8 +158,7 @@ def process_files(parallel: Workload) -> None:
                 )
         else:
             print(
-                "UserWarning: File %s did not contain valid stop_sequence data, skipping."
-                % (xml_name)
+                f"UserWarning: File {xml_name} did not contain valid stop_sequence data, skipping."
             )
 
         # Close connection
@@ -170,7 +168,7 @@ def process_files(parallel: Workload) -> None:
         end_t = timeit()
         duration = (end_t - start_t) / 60
 
-        print("It took %s minutes." % round(duration, 1))
+        print(f"It took {round(duration, 1)} minutes.")
 
         # ===================
         # ===================
@@ -248,7 +246,7 @@ def convert(
     tot_end_t = timeit()
     tot_duration = (tot_end_t - tot_start_t) / 60
     print("===========================================================")
-    print("It took %s minutes in total." % round(tot_duration, 1))
+    print(f"It took {round(tot_duration, 1)} minutes in total.")
 
     # Generate output dictionary
     gtfs_data = generate_gtfs_export(gtfs_db)

@@ -8,7 +8,7 @@
             "name": "Python Debugger: Module",
             "type": "debugpy",
             "request": "launch",
-            "module": "transx2gtfs",
+            "module": "txc2gtfs",
             "args": ["/home/george/Downloads/FBRI-MST_OYTmCXN.zip"],
             "justMyCode": false
         }

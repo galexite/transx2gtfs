@@ -3,9 +3,9 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "transx2gtfs"
+name = "txc2gtfs"
 version = "0.4.1"
-description = "A Python tool to convert TransXchange data into GTFS."
+description = "A Python tool to convert TransXChange data into GTFS."
 requires-python = ">=3.9"
 dependencies = [
     "filelock>=3.17.0",
@@ -25,10 +25,16 @@ classifiers = [
 readme = "README.md"
 
 [project.scripts]
-transx2gtfs = "transx2gtfs.cli:main"
+txc2gtfs = "txc2gtfs.cli:main"
 
 [tool.setuptools]
-packages = ["transx2gtfs"]
+packages = ["txc2gtfs"]
 
 [dependency-groups]
 dev = ["pytest>=8.3.4", "requests>=2.32.3", "ruff>=0.9.6"]
+
+[tool.ruff]
+fixable = ["ALL"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "N", "UP", "FURB", "PERF", "RUF"]

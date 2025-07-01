@@ -1,4 +1,4 @@
-from transx2gtfs.data import get_path
+from txc2gtfs.data import get_path
 import pytest
 
 
@@ -23,8 +23,8 @@ def dir_with_packed_data():
 
 
 def test_reading_from_unpacked_directory(unpacked_data):
-    from transx2gtfs.dataio import get_xml_paths
-    from transx2gtfs.dataio import read_unpacked_xml
+    from txc2gtfs.dataio import get_xml_paths
+    from txc2gtfs.dataio import read_unpacked_xml
     from untangle import Element
 
     xml_paths = get_xml_paths(unpacked_data)
@@ -41,8 +41,8 @@ def test_reading_from_unpacked_directory(unpacked_data):
 
 
 def test_reading_from_packed(packed_data):
-    from transx2gtfs.dataio import get_xml_paths
-    from transx2gtfs.dataio import read_xml_inside_zip
+    from txc2gtfs.dataio import get_xml_paths
+    from txc2gtfs.dataio import read_xml_inside_zip
     from untangle import Element
 
     xml_paths = get_xml_paths(packed_data)
@@ -50,8 +50,8 @@ def test_reading_from_packed(packed_data):
     # All the paths should be dicts with strings
     for path in xml_paths:
         assert isinstance(path, dict)
-        k = list(path.keys())[0]
-        v = list(path.values())[0]
+        k = next(iter(path.keys()))
+        v = next(iter(path.values()))
 
         # Key should be the XML name
         assert k.endswith(".xml")
@@ -65,8 +65,8 @@ def test_reading_from_packed(packed_data):
 
 
 def test_reading_from_nested(nested_data):
-    from transx2gtfs.dataio import get_xml_paths
-    from transx2gtfs.dataio import read_xml_inside_nested_zip
+    from txc2gtfs.dataio import get_xml_paths
+    from txc2gtfs.dataio import read_xml_inside_nested_zip
     from untangle import Element
 
     xml_paths = get_xml_paths(nested_data)
@@ -74,8 +74,8 @@ def test_reading_from_nested(nested_data):
     # All the paths should be dicts with strings
     for path in xml_paths:
         assert isinstance(path, dict)
-        k = list(path.keys())[0]
-        v = list(path.values())[0]
+        k = next(iter(path.keys()))
+        v = next(iter(path.values()))
 
         # Key should be the Zip File path
         assert k.endswith(".zip")

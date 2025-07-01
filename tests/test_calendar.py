@@ -1,4 +1,4 @@
-from transx2gtfs.data import get_path
+from txc2gtfs.data import get_path
 import pytest
 
 
@@ -18,7 +18,7 @@ def test_naptan_data():
 
 
 def test_calendar_weekday_info_tfl(test_tfl_data):
-    from transx2gtfs.calendar import get_service_operative_days_info
+    from txc2gtfs.calendar import get_service_operative_days_info
     import untangle
 
     data = untangle.parse(test_tfl_data)
@@ -32,7 +32,7 @@ def test_calendar_weekday_info_tfl(test_tfl_data):
 
 
 def test_calendar_weekday_info_txc21(test_txc21_data):
-    from transx2gtfs.calendar import get_service_operative_days_info
+    from txc2gtfs.calendar import get_service_operative_days_info
     import untangle
 
     data = untangle.parse(test_txc21_data)
@@ -46,7 +46,7 @@ def test_calendar_weekday_info_txc21(test_txc21_data):
 
 
 def test_calendar_dataframe_tfl(test_tfl_data):
-    from transx2gtfs.calendar import get_weekday_info, parse_day_range
+    from txc2gtfs.calendar import get_weekday_info, parse_day_range
     from pandas import DataFrame
     from pandas.testing import assert_frame_equal
     import untangle
@@ -100,7 +100,7 @@ def test_calendar_dataframe_tfl(test_tfl_data):
 
 
 def test_calendar_dataframe_txc21(test_txc21_data):
-    from transx2gtfs.calendar import get_weekday_info, parse_day_range
+    from txc2gtfs.calendar import get_weekday_info, parse_day_range
     from pandas import DataFrame
     from pandas.testing import assert_frame_equal
     import untangle
@@ -154,8 +154,8 @@ def test_calendar_dataframe_txc21(test_txc21_data):
 
 
 def test_get_calendar_tfl(test_tfl_data):
-    from transx2gtfs.calendar import get_calendar
-    from transx2gtfs.transxchange import get_gtfs_info
+    from txc2gtfs.calendar import get_calendar
+    from txc2gtfs.transxchange import get_gtfs_info
     from pandas import DataFrame
     from pandas.testing import assert_frame_equal
     import numpy as np
@@ -203,8 +203,8 @@ def test_get_calendar_tfl(test_tfl_data):
 
 
 def test_get_calendar_txc21(test_txc21_data):
-    from transx2gtfs.calendar import get_calendar
-    from transx2gtfs.transxchange import get_gtfs_info
+    from txc2gtfs.calendar import get_calendar
+    from txc2gtfs.transxchange import get_gtfs_info
     from pandas import DataFrame
     from pandas.testing import assert_frame_equal
     import numpy as np

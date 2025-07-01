@@ -37,6 +37,6 @@ def get_path(dataset):
                 os.path.join(_module_path, _available_files[dataset])
             )
     else:
-        msg = "The dataset '{data}' is not available. ".format(data=dataset)
+        msg = f"The dataset '{dataset}' is not available. "
         msg += "Available datasets are {}".format(", ".join(available))
         raise ValueError(msg)

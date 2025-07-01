@@ -1,4 +1,4 @@
-from transx2gtfs.data import get_path
+from txc2gtfs.data import get_path
 import pytest
 
 
@@ -18,7 +18,7 @@ def test_naptan_data():
 
 
 def test_reading_journey_patterns_from_txc21(test_txc21_data, test_naptan_data):
-    from transx2gtfs.transxchange import get_service_journey_patterns
+    from txc2gtfs.transxchange import get_service_journey_patterns
     from pandas import DataFrame
     import untangle
 
@@ -58,7 +58,7 @@ def test_reading_journey_patterns_from_txc21(test_txc21_data, test_naptan_data):
 
 
 def test_reading_journey_patterns_from_tfl_format(test_tfl_data, test_naptan_data):
-    from transx2gtfs.transxchange import get_service_journey_patterns
+    from txc2gtfs.transxchange import get_service_journey_patterns
     from pandas import DataFrame
     import untangle
 

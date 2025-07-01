@@ -3,7 +3,7 @@ from collections.abc import Generator
 
 import pandas as pd
 
-from transx2gtfs.util.xml import NS, XMLTree
+from txc2gtfs.util.xml import NS, XMLTree
 
 _OPERATOR_URLS = {
     "OId_LUL": "https://tfl.gov.uk/maps/track/tube",
