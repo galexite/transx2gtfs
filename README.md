@@ -1,28 +1,28 @@
-# txc2gtfs 
+# txc2gtfs
 
-**txc2gtfs** is a library for converting UK public transport data from [TransXChange](https://www.gov.uk/government/collections/transxchange) format 
-into [GTFS](https://developers.google.com/transit/gtfs) that can be used with various routing engines such as OpenTripPlanner. 
+**txc2gtfs** is a library for converting UK public transport data from [TransXChange](https://www.gov.uk/government/collections/transxchange) format
+into [GTFS](https://developers.google.com/transit/gtfs) that can be used with various routing engines such as OpenTripPlanner.
 
 ## Note!
 
-This package is still in a Beta-phase, so use it at your own risk. 
-If you find an issue, you can contribute and 
+This package is still in a Beta-phase, so use it at your own risk.
+If you find an issue, you can contribute and
 help solving them by [raising an issue](https://github.com/HTenkanen/txc2gtfs/issues).
 
 ## Features
 
- - Reads TransXchange xml-files and converts into GTFS feed with all necessary information 
+ - Reads TransXchange xml-files and converts into GTFS feed with all necessary information
  according the General Transit Feed Specification.
  - Works and tested against different TransXchange schemas (TfL schema and TXC 2.1)
  - Combines multiple TransXchange files into a single GTFS feed if present in the same folder.
- - Finds and reads all XML files present in ZipFiles, nested ZipFiles and unpacked directories. 
+ - Finds and reads all XML files present in ZipFiles, nested ZipFiles and unpacked directories.
  - Uses multiprocessing to parallelize the conversion process.
  - Parses bank holidays (from [gov.uk](https://www.gov.uk/bank-holidays)) affecting transit operations at the given time span of the TransXChange feed, which are written to calendar_dates.txt.
- - Reads and updates stop information automatically from NaPTAN website.  
- 
+ - Reads and updates stop information automatically from NaPTAN website.
+
 ## Why yet another converter?
 
-There are numerous TransXChange to GTFS converters written in different programming languages. 
+There are numerous TransXChange to GTFS converters written in different programming languages.
 However, after testing many of them, it was hard to find a tool that would:
 
  1. work in general (without ad-hoc modifications)
@@ -31,18 +31,17 @@ However, after testing many of them, it was hard to find a tool that would:
  4. be well maintained
  5. be easy to use in all operating systems
  6. include appropriate tests (crucial for maintenance).
- 
-Hence, this Python package was written which aims at meeting the aforementioned requirements. 
+
+Hence, this Python package was written which aims at meeting the aforementioned requirements.
 It's not the fastest library out there (written in Python) but multiprocessing gives a bit of boost
 if having a decent computer with multiple cores.
 
 ### Requirements
 
-txc2gtfs has following dependencies (tested against the latest versions available for Python 3.6, 3.7 and 3.8):
+txc2gtfs has following dependencies:
 
  - pandas
- - pyproj
-  
+
 ## Basic usage
 
 After you have installed the library you can use it in a following manner:
