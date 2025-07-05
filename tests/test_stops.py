@@ -1,5 +1,6 @@
-from txc2gtfs.data import get_path
 import pytest
+
+from txc2gtfs.data import get_path
 
 
 @pytest.fixture
@@ -13,9 +14,10 @@ def test_txc21_data():
 
 
 def test_reading_stops_from_txc21(test_txc21_data):
-    from txc2gtfs.stops import _get_txc_21_style_stops
-    from pandas import DataFrame
     import untangle
+    from pandas import DataFrame
+
+    from txc2gtfs.stops import _get_txc_21_style_stops
 
     data = untangle.parse(test_txc21_data)
     stops = _get_txc_21_style_stops(data)
@@ -37,9 +39,10 @@ def test_reading_stops_from_txc21(test_txc21_data):
 
 
 def test_reading_stops_from_tfl(test_tfl_data):
-    from txc2gtfs.stops import _get_tfl_style_stops
-    from pandas import DataFrame
     import untangle
+    from pandas import DataFrame
+
+    from txc2gtfs.stops import _get_tfl_style_stops
 
     data = untangle.parse(test_tfl_data)
     stops = _get_tfl_style_stops(data)

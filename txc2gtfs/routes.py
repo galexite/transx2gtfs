@@ -1,4 +1,5 @@
 from collections.abc import Generator
+
 import pandas as pd
 
 from .util.xml import NS, XMLElement, XMLTree, get_text

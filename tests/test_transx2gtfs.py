@@ -1,5 +1,6 @@
-from txc2gtfs.data import get_path
 import pytest
+
+from txc2gtfs.data import get_path
 
 
 @pytest.fixture
@@ -19,8 +20,8 @@ def test_txc21_data():
 
 @pytest.fixture
 def temp_output_filepath():
-    import tempfile
     import os
+    import tempfile
 
     temp_dir = tempfile.gettempdir()
     temp_fp = os.path.join(temp_dir, "test_gtfs.zip")
@@ -28,8 +29,9 @@ def temp_output_filepath():
 
 
 def test_agency_urls():
-    from txc2gtfs.agency import get_agency_url
     import requests
+
+    from txc2gtfs.agency import get_agency_url
 
     operator_codes = [
         "OId_LUL",
@@ -50,9 +52,10 @@ def test_agency_urls():
 
 
 def test_converting_to_gtfs(test_data, temp_output_filepath):
-    import txc2gtfs
     import os
     from zipfile import ZipFile
+
+    import txc2gtfs
 
     # Do the conversion
     txc2gtfs.convert(test_data, temp_output_filepath)

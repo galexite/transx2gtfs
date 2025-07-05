@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, overload
 
-
 if TYPE_CHECKING:
     import xml.etree.ElementTree as ET
 

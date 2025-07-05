@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta
 from typing import Any, cast
+
 import pandas as pd
-from datetime import datetime, timedelta, time, date
+
 from txc2gtfs.calendar import get_weekday_info
 from txc2gtfs.calendar_dates import (
     get_non_operation_days,
 )
-from txc2gtfs.stop_times import generate_service_id, get_direction
 from txc2gtfs.routes import get_mode
-from txc2gtfs.util.xml import XMLElement, XMLTree, NS, get_text
+from txc2gtfs.stop_times import generate_service_id, get_direction
+from txc2gtfs.util.xml import NS, XMLElement, XMLTree, get_text
 
 
 @dataclass

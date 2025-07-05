@@ -1,5 +1,6 @@
-from txc2gtfs.data import get_path
 import pytest
+
+from txc2gtfs.data import get_path
 
 
 @pytest.fixture
@@ -19,8 +20,8 @@ def test_txc21_data():
 
 @pytest.fixture
 def temp_output_filepath():
-    import tempfile
     import os
+    import tempfile
 
     temp_dir = tempfile.gettempdir()
     temp_fp = os.path.join(temp_dir, "test_gtfs.zip")
@@ -28,8 +29,8 @@ def temp_output_filepath():
 
 
 def test_data_dir_availability_for_testing(test_data):
-    import os
     import glob
+    import os
 
     assert os.path.isdir(test_data)
     files = glob.glob(os.path.join(test_data, "*.xml"))

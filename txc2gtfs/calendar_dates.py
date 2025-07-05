@@ -1,9 +1,10 @@
+import warnings
 from collections.abc import Generator, Iterable
 from typing import cast
-import pandas as pd
-from txc2gtfs.bank_holidays import get_bank_holiday_dates
-import warnings
 
+import pandas as pd
+
+from txc2gtfs.bank_holidays import get_bank_holiday_dates
 from txc2gtfs.util.xml import NS, XMLElement
 
 

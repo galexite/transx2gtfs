@@ -1,12 +1,12 @@
-from dataclasses import dataclass
-from functools import total_ordering
 import json
-from typing import cast
-import pandas as pd
+from dataclasses import dataclass
 from datetime import datetime
+from functools import total_ordering
+from typing import cast
+
+import pandas as pd
 
 from .util.network import download_cached
-
 
 _BANK_HOLIDAYS_JSON_URL = "https://www.gov.uk/bank-holidays.json"
 

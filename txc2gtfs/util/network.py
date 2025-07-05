@@ -1,11 +1,11 @@
 import contextlib
-from datetime import timedelta, datetime
 import http
-from pathlib import Path
 import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta
+from pathlib import Path
 
 from filelock import FileLock
-import urllib.request
 
 _CACHE_KEY = "txc2gtfs"
 _CACHE_DIR = Path.home() / ".cache" / _CACHE_KEY

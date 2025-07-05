@@ -1,10 +1,10 @@
 from collections.abc import Generator
 from pathlib import Path
+
 import pandas as pd
 
 from .util.network import download_cached
 from .util.xml import NS, XMLTree
-
 
 _NAPTAN_CSV_URL = "https://beta-naptan.dft.gov.uk/Download/National/csv"
 

@@ -1,5 +1,6 @@
-from txc2gtfs.data import get_path
 import pytest
+
+from txc2gtfs.data import get_path
 
 
 @pytest.fixture
@@ -18,8 +19,9 @@ def test_naptan_data():
 
 
 def test_calendar_weekday_info_tfl(test_tfl_data):
-    from txc2gtfs.calendar import get_service_operative_days_info
     import untangle
+
+    from txc2gtfs.calendar import get_service_operative_days_info
 
     data = untangle.parse(test_tfl_data)
     operative_days = get_service_operative_days_info(data)
@@ -32,8 +34,9 @@ def test_calendar_weekday_info_tfl(test_tfl_data):
 
 
 def test_calendar_weekday_info_txc21(test_txc21_data):
-    from txc2gtfs.calendar import get_service_operative_days_info
     import untangle
+
+    from txc2gtfs.calendar import get_service_operative_days_info
 
     data = untangle.parse(test_txc21_data)
     operative_days = get_service_operative_days_info(data)
@@ -46,10 +49,11 @@ def test_calendar_weekday_info_txc21(test_txc21_data):
 
 
 def test_calendar_dataframe_tfl(test_tfl_data):
-    from txc2gtfs.calendar import get_weekday_info, parse_day_range
+    import untangle
     from pandas import DataFrame
     from pandas.testing import assert_frame_equal
-    import untangle
+
+    from txc2gtfs.calendar import get_weekday_info, parse_day_range
 
     data = untangle.parse(test_tfl_data)
 
@@ -100,10 +104,11 @@ def test_calendar_dataframe_tfl(test_tfl_data):
 
 
 def test_calendar_dataframe_txc21(test_txc21_data):
-    from txc2gtfs.calendar import get_weekday_info, parse_day_range
+    import untangle
     from pandas import DataFrame
     from pandas.testing import assert_frame_equal
-    import untangle
+
+    from txc2gtfs.calendar import get_weekday_info, parse_day_range
 
     data = untangle.parse(test_txc21_data)
 
@@ -154,12 +159,13 @@ def test_calendar_dataframe_txc21(test_txc21_data):
 
 
 def test_get_calendar_tfl(test_tfl_data):
-    from txc2gtfs.calendar import get_calendar
-    from txc2gtfs.transxchange import get_gtfs_info
-    from pandas import DataFrame
-    from pandas.testing import assert_frame_equal
     import numpy as np
     import untangle
+    from pandas import DataFrame
+    from pandas.testing import assert_frame_equal
+
+    from txc2gtfs.calendar import get_calendar
+    from txc2gtfs.transxchange import get_gtfs_info
 
     data = untangle.parse(test_tfl_data)
 
@@ -203,12 +209,13 @@ def test_get_calendar_tfl(test_tfl_data):
 
 
 def test_get_calendar_txc21(test_txc21_data):
-    from txc2gtfs.calendar import get_calendar
-    from txc2gtfs.transxchange import get_gtfs_info
-    from pandas import DataFrame
-    from pandas.testing import assert_frame_equal
     import numpy as np
     import untangle
+    from pandas import DataFrame
+    from pandas.testing import assert_frame_equal
+
+    from txc2gtfs.calendar import get_calendar
+    from txc2gtfs.transxchange import get_gtfs_info
 
     data = untangle.parse(test_txc21_data)
 
