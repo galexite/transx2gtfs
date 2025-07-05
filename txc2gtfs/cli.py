@@ -1,6 +1,6 @@
 import argparse
-from collections.abc import Sequence
 import multiprocessing
+from collections.abc import Sequence
 from pathlib import Path
 
 from . import convert
@@ -11,7 +11,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument(
         "input",
         type=Path,
-        help="Path to a TransXChange XML file or a zip file containing those files",
+        nargs="+",
+        help="Path to TransXChange XML files",
     )
     parser.add_argument(
         "-o",

@@ -26,6 +26,9 @@ readme = "README.md"
 [project.scripts]
 txc2gtfs = "txc2gtfs.cli:main"
 
+[project.optional-dependencies]
+tqdm = ["tqdm~=4.67"]
+
 [tool.setuptools]
 packages = ["txc2gtfs"]
 
@@ -36,4 +39,4 @@ dev = ["pytest>=8.3.4", "requests>=2.32.3", "ruff>=0.9.6"]
 fixable = ["ALL"]
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "N", "UP", "FURB", "PERF", "RUF"]
+select = ["E", "W", "F", "N", "I", "UP", "FURB", "PERF", "RUF"]

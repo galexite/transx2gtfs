@@ -1,87 +1,14 @@
 from __future__ import annotations
-from pathlib import Path
+
+import csv
 import sqlite3
 from typing import TYPE_CHECKING
-import pandas as pd
-from zipfile import ZipFile, ZIP_DEFLATED
-import csv
-import os
-import xml.etree.ElementTree as ET
+from zipfile import ZIP_DEFLATED, ZipFile
 
+import pandas as pd
 
 if TYPE_CHECKING:
-    from txc2gtfs.util.xml import XMLTree
     from _typeshed import StrPath
-    from collections.abc import Generator
-
-
-def get_paths_from_zip(zip_filepath: Path) -> Generator[dict[str, Path], None, None]:
-    """
-    Extracts XML file paths from a .zip file.
-    """
-    with ZipFile(zip_filepath) as z:
-        for name in z.namelist():
-            if name.endswith(".xml"):
-                yield {name: zip_filepath}
-
-
-def get_xml_paths(filepath: Path) -> Generator[Path | dict[str, Path], None, None]:
-    """
-    Retrieves XML paths from:
-        - directory +
-        - ZipFiles within a directory +
-        - ZipFiles within a ZipFile
-
-    Finds xml files with all combinations of the above.
-    """
-    if filepath.suffix == ".zip":
-        yield from get_paths_from_zip(filepath)
-        return
-    if filepath.suffix == ".xml":
-        yield filepath
-        return
-
-    if not os.path.isdir(filepath):
-        raise ValueError(f"{filepath} is not a .zip, .xml file or directory")
-
-    yield from filepath.glob("*.xml")
-    for zipfp in filepath.glob("*.zip"):
-        yield from get_paths_from_zip(zipfp)
-
-
-def read_unpacked_xml(xml_path: Path) -> tuple[XMLTree, int, str]:
-    file_size = os.path.getsize(xml_path)
-    return ET.parse(xml_path), file_size, os.path.basename(xml_path)
-
-
-def read_xml_inside_zip(xml_path: dict[str, Path]) -> tuple[XMLTree, int, str]:
-    """
-    Reads an XML file which is inside a ZipFile.
-    """
-    zip_filepath = next(iter(xml_path.values()))
-    filename = next(iter(xml_path.keys()))
-    z = ZipFile(zip_filepath)
-    file_size = z.getinfo(filename).file_size
-    return ET.parse(z.open(filename)), file_size, filename
-
-
-# def read_xml_inside_nested_zip(xml_path):
-#     """
-#     Reads an XML which is in a ZipFile inside another ZipFile.
-#     """
-#     zip_filepath = list(xml_path.keys())[0]
-#     inner_zip_info = list(xml_path.values())[0]
-#     inner_zip_name = list(inner_zip_info.keys())[0]
-#     xml_name = list(inner_zip_info.values())[0]
-
-#     # Read outer zip
-#     z = ZipFile(zip_filepath)
-
-#     # Read inner zip to memory
-#     inner_zip = ZipFile(io.BytesIO(z.read(inner_zip_name)))
-#     file_size = inner_zip.getinfo(xml_name).file_size
-#     parsed_xml = untangle.parse(io.TextIOWrapper(io.BytesIO(inner_zip.read(xml_name))))
-#     return parsed_xml, file_size, xml_name
 
 
 def generate_gtfs_export(gtfs_db_fp: StrPath) -> dict[str, pd.DataFrame]:

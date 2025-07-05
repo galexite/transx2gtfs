@@ -38,109 +38,60 @@ MIT.
 """
 
 from __future__ import annotations
-from pathlib import Path
-import sys
-from time import time as timeit
-import sqlite3
-import os
+
+import functools
 import multiprocessing
+import os
+import sqlite3
+import xml.etree.ElementTree as ET
+from collections.abc import Generator, Iterable
+from pathlib import Path
 from typing import TYPE_CHECKING
-from txc2gtfs.stop_times import get_stop_times
-from txc2gtfs.stops import get_stops
-from txc2gtfs.trips import get_trips
-from txc2gtfs.routes import get_routes
+
 from txc2gtfs.agency import get_agency
 from txc2gtfs.calendar import get_calendar
 from txc2gtfs.calendar_dates import get_calendar_dates
-from txc2gtfs.dataio import generate_gtfs_export, save_to_gtfs_zip, get_xml_paths
-from txc2gtfs.dataio import (
-    # read_xml_inside_nested_zip,
-    read_xml_inside_zip,
-    read_unpacked_xml,
-)
+from txc2gtfs.dataio import generate_gtfs_export, save_to_gtfs_zip
+from txc2gtfs.routes import get_routes
+from txc2gtfs.stop_times import get_stop_times
+from txc2gtfs.stops import get_stops
 from txc2gtfs.transxchange import get_gtfs_info
-from txc2gtfs.distribute import create_workers, Workload
+from txc2gtfs.trips import get_trips
 
 if TYPE_CHECKING:
     from _typeshed import StrPath
 
 
-def process_files(parallel: Workload) -> None:
-    # Get files from input instance
-    files = parallel.input_files
-    file_size_limit = parallel.file_size_limit
-    gtfs_db = parallel.gtfs_db
+def process_file(path: Path, gtfs_db: Path) -> None:
+    # If type is string, it is a direct filepath to XML
+    data = ET.parse(path)
 
-    for idx, path in enumerate(files):
-        # If type is string, it is a direct filepath to XML
-        data, file_size, xml_name = (
-            read_unpacked_xml(path)
-            if isinstance(path, Path)
-            else read_xml_inside_zip(path)
-        )
+    # Parse stops
+    stop_data = get_stops(data)
 
-        # If the type is dictionary contents are in a zip
-        # elif isinstance(path, dict):
-        #     # If the type of value is a string the file can be read directly
-        #     # from the given Zipfile path, with following structure:
-        #     # {"transxchange_name.xml" : "/home/data/myzipfile.zip"}
-        #     if isinstance(list(path.values())[0], Path):
-        #         data, file_size, xml_name =
+    # Parse agency
+    agency = get_agency(data)
 
-        #     # If the type of value is a dictionary the xml-file
-        #     # is in a ZipFile which is inside another ZipFile.
-        #     # In such cases, the path stucture is:
-        #     # {"outermost_zipfile_path.zip": {"inner_zipfile.zip": "transxchange.xml"}}
-        #     elif isinstance(list(path.values())[0], dict):
-        #         raise NotImplementedError("Nested zip files not yet supported.")
-        #         # data, file_size, xml_name = read_xml_inside_nested_zip(path)
-        #     else:
-        #         raise TypeError("Expected Path or dict[str, Path] for file in zip")
-        # else:
-        #     raise TypeError(
-        #         f"Expected Path or dict[str, Path | dict[str, Path]] for element {idx}, got {type(path)}"
-        #     )
+    # Parse GTFS info containing data about trips, calendar, stop_times and calendar_dates
+    gtfs_info = get_gtfs_info(data)
 
-        # Filesize
-        size = round((file_size / 1000000), 1)
-        if file_size_limit < size:
-            continue
+    # Parse stop_times
+    stop_times = get_stop_times(gtfs_info)
 
-        print("=================================================================")
-        print(
-            f"[{idx} / {len(files)}] Processing TransXChange file: {xml_name}"
-        )
-        print(f"Size: {size} MB")
-        # Log start time
-        start_t = timeit()
+    # Parse trips
+    trips = get_trips(gtfs_info)
 
-        # Parse stops
-        stop_data = get_stops(data)
+    # Parse calendar
+    calendar = get_calendar(gtfs_info)
 
-        # Parse agency
-        agency = get_agency(data)
+    # Parse calendar_dates
+    calendar_dates = get_calendar_dates(gtfs_info)
 
-        # Parse GTFS info containing data about trips, calendar, stop_times and calendar_dates
-        gtfs_info = get_gtfs_info(data)
+    # Parse routes
+    routes = get_routes(gtfs_info, data)
 
-        # Parse stop_times
-        stop_times = get_stop_times(gtfs_info)
-
-        # Parse trips
-        trips = get_trips(gtfs_info)
-
-        # Parse calendar
-        calendar = get_calendar(gtfs_info)
-
-        # Parse calendar_dates
-        calendar_dates = get_calendar_dates(gtfs_info)
-
-        # Parse routes
-        routes = get_routes(gtfs_info, data)
-
-        # Initialize database connection
-        conn = sqlite3.connect(gtfs_db)
-
+    # Initialize database connection
+    with sqlite3.connect(gtfs_db) as conn:
         # Only export data into db if there exists valid stop_times data
         if len(stop_times) > 0:
             stop_times.to_sql(
@@ -158,26 +109,22 @@ def process_files(parallel: Workload) -> None:
                 )
         else:
             print(
-                f"UserWarning: File {xml_name} did not contain valid stop_sequence data, skipping."
+                f"UserWarning: File {path.name} did not contain valid stop_sequence data, skipping."
             )
 
-        # Close connection
-        conn.close()
 
-        # Log end time and parse duration
-        end_t = timeit()
-        duration = (end_t - start_t) / 60
-
-        print(f"It took {round(duration, 1)} minutes.")
-
-        # ===================
-        # ===================
-        # ===================
+def _iterate_paths(input: Iterable[StrPath]) -> Generator[Path, None, None]:
+    for path in input:
+        path = Path(path)
+        if path.is_dir():
+            yield from path.glob("*.xml")
+            continue
+        yield path
 
 
 def convert(
-    input_filepath: StrPath,
-    output_filepath: StrPath,
+    input: Iterable[StrPath],
+    output: StrPath,
     append_to_existing: bool = False,
     worker_cnt: int = 1,
     file_size_limit: int = 2000,
@@ -200,56 +147,35 @@ def convert(
     file_size_limit : int
         File size limit (in megabytes) can be used to skip larger-than-memory XML-files (should not happen).
     """
-    # Total start
-    tot_start_t = timeit()
-
-    input_filepath = Path(input_filepath)
-    output_filepath = Path(output_filepath)
+    input = _iterate_paths(input)
+    output = Path(output)
 
     # Filepath for temporary gtfs db
-    gtfs_db = output_filepath.parent / "gtfs.db"
+    gtfs_db = output.parent / "gtfs.db"
 
     # If append to database is false remove previous gtfs-database if it exists
     if not append_to_existing:
         if os.path.exists(gtfs_db):
             os.remove(gtfs_db)
 
-    # Retrieve all TransXChange files
-    files = list(get_xml_paths(input_filepath))
+    try:
+        import tqdm
 
-    if not files:
-        print("No files to process! Exiting.", file=sys.stderr)
-        return
+        iterator = tqdm.tqdm(list(input))
+    except ImportError:
+        iterator = input
 
     # Create workers
     if worker_cnt > 1:
-        workers = create_workers(
-            files,
-            gtfs_db,
-            worker_cnt=worker_cnt,
-            file_size_limit=file_size_limit,
-        )
-
-        # Create Pool
-        pool = multiprocessing.Pool()
-
-        # Generate GTFS info to the database in parallel
-        pool.map(process_files, workers)
+        with multiprocessing.Pool(worker_cnt) as pool:
+            _process_file = functools.partial(process_file, gtfs_db=gtfs_db)
+            pool.map(_process_file, iterator)
     else:
-        process_files(
-            Workload(
-                input_files=files, file_size_limit=file_size_limit, gtfs_db=gtfs_db
-            )
-        )
-
-    # Print information about the total time
-    tot_end_t = timeit()
-    tot_duration = (tot_end_t - tot_start_t) / 60
-    print("===========================================================")
-    print(f"It took {round(tot_duration, 1)} minutes in total.")
+        for file in iterator:
+            process_file(file, gtfs_db)
 
     # Generate output dictionary
     gtfs_data = generate_gtfs_export(gtfs_db)
 
     # Export to disk
-    save_to_gtfs_zip(output_zip_fp=output_filepath, gtfs_data=gtfs_data)
+    save_to_gtfs_zip(output_zip_fp=output, gtfs_data=gtfs_data)
