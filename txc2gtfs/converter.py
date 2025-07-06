@@ -155,8 +155,7 @@ def convert(
 
     # If append to database is false remove previous gtfs-database if it exists
     if not append_to_existing:
-        if os.path.exists(gtfs_db):
-            os.remove(gtfs_db)
+        gtfs_db.unlink(missing_ok=True)
 
     # Create workers
     if num_workers > 1:

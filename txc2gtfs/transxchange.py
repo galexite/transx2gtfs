@@ -49,8 +49,8 @@ def get_last_stop_time_info(
         {
             "stop_id": [stop_id],
             "stop_sequence": [stop_num],
-            "arrival_time": [f"{arrival_hour:02}:{current_dt.strftime("%M:%S")}"],
-            "departure_time": [f"{departure_hour:02}:{departure_dt.strftime("%M:%S")}"],
+            "arrival_time": [f"{arrival_hour:02}:{current_dt.strftime('%M:%S')}"],
+            "departure_time": [f"{departure_hour:02}:{departure_dt.strftime('%M:%S')}"],
         }
     )
 
@@ -343,7 +343,9 @@ def process_vehicle_journeys(
                     # Update stop number
                     stop_num += 1
 
-            section_times = pd.DataFrame.from_records(gen_timing_links(), columns=_SECTION_TIMES_COLS)  # type: ignore
+            section_times = pd.DataFrame.from_records(
+                gen_timing_links(), columns=_SECTION_TIMES_COLS
+            )  # type: ignore
 
             # After timing links have been iterated over,
             # the last stop needs to be added separately
@@ -420,14 +422,12 @@ def get_gtfs_info(data: XMLTree) -> pd.DataFrame:
 
     # Process
     return pd.concat(
-
-            process_vehicle_journeys(
-                journeys,
-                sections,
-                service,
-            )
-            for service in services
-
+        process_vehicle_journeys(
+            journeys,
+            sections,
+            service,
+        )
+        for service in services
     )
 
 

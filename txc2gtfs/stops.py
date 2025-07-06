@@ -20,9 +20,7 @@ def read_naptan_stops() -> pd.DataFrame:
     """
     naptan_fp = download_cached(_NAPTAN_CSV_URL, "Stops.csv")
 
-    stops = pd.read_csv(
-        naptan_fp, header=0, usecols=_COLUMNS.keys(), low_memory=False
-    )  # type: ignore
+    stops = pd.read_csv(naptan_fp, header=0, usecols=_COLUMNS.keys(), low_memory=False)  # type: ignore
 
     # Rename required columns into GTFS format
     return stops.rename(columns=_COLUMNS)
