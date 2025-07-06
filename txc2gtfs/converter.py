@@ -51,7 +51,7 @@ from typing import TYPE_CHECKING
 from txc2gtfs.agency import get_agency
 from txc2gtfs.calendar import get_calendar
 from txc2gtfs.calendar_dates import get_calendar_dates
-from txc2gtfs.dataio import generate_gtfs_export, save_to_gtfs_zip
+from txc2gtfs.gtfs import export_to_zip
 from txc2gtfs.routes import get_routes
 from txc2gtfs.stop_times import get_stop_times
 from txc2gtfs.stops import get_stops
@@ -167,8 +167,4 @@ def convert(
         for file in input:
             process_file(file, gtfs_db)
 
-    # Generate output dictionary
-    gtfs_data = generate_gtfs_export(gtfs_db)
-
-    # Export to disk
-    save_to_gtfs_zip(output_zip_fp=output, gtfs_data=gtfs_data)
+    export_to_zip(gtfs_db, output)
