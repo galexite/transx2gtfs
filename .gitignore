@@ -7,3 +7,4 @@ dist/
 *.zip
 *.egg-info
 examples
+.vscode/launch.json

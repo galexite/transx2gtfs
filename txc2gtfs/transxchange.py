@@ -520,10 +520,10 @@ def get_service_journey_patterns(service: XMLElement) -> pd.DataFrame:
             journey_pattern_id = jp.get("id")
 
             # Section reference
-            section_ref = get_text(jp, "txc:JourneyPatternSectionRefs")
+            section_ref = get_text(jp, "./txc:JourneyPatternSectionRefs")
 
             # Direction
-            direction = get_direction(get_text(jp, "txc:Direction"))
+            direction = get_direction(get_text(jp, "./txc:Direction"))
 
             # Headsign
             headsign = origin if direction == 0 else destination

@@ -7,29 +7,26 @@ from .util.network import download_cached
 from .util.xml import NS, XMLTree
 
 _NAPTAN_CSV_URL = "https://beta-naptan.dft.gov.uk/Download/National/csv"
+_COLUMNS = {
+    "ATCOCode": "stop_id",
+    "Longitude": "stop_lon",
+    "Latitude": "stop_lat",
+    "CommonName": "stop_name",
+}
 
 
-def read_naptan_stops(naptan_fp: Path | None = None) -> pd.DataFrame:
+def read_naptan_stops() -> pd.DataFrame:
     """
     Reads NaPTAN stops, downloading them if necessary.
     """
-    if naptan_fp is None:
-        naptan_fp = download_cached(_NAPTAN_CSV_URL, "Stops.csv")
+    naptan_fp = download_cached(_NAPTAN_CSV_URL, "Stops.csv")
 
-    stops = pd.read_csv(naptan_fp, low_memory=False)  # type: ignore
+    stops = pd.read_csv(
+        naptan_fp, header=0, usecols=_COLUMNS.keys(), low_memory=False
+    )  # type: ignore
 
     # Rename required columns into GTFS format
-    stops = stops.rename(
-        columns={
-            "ATCOCode": "stop_id",
-            "Longitude": "stop_lon",
-            "Latitude": "stop_lat",
-            "CommonName": "stop_name",
-        }
-    )
-
-    # Keep only required columns
-    return stops.loc[["stop_id", "stop_lon", "stop_lat", "stop_name"]]
+    return stops.rename(columns=_COLUMNS)
 
 
 def get_stops(data: XMLTree) -> pd.DataFrame:
@@ -67,9 +64,9 @@ def get_stops(data: XMLTree) -> pd.DataFrame:
             assert stop_id, "Empty StopPointRef"
             yield stop_id
 
-    if stop_points.find("./txc:StopPoint", NS) is not None:
+    if stop_points.find("txc:StopPoint", NS) is not None:
         stop_ids = list(gen_stoppoint_ids())
-    elif stop_points.find("./txc:AnnotatedStopPointRef", NS):
+    elif stop_points.find("txc:AnnotatedStopPointRef", NS):
         stop_ids = list(gen_annotatedstoppoint_ids())
     else:
         raise ValueError("No StopPoint or AnnotatedStopPointRef elements.")

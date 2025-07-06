@@ -30,11 +30,6 @@ def get_stop_times(gtfs_info: pd.DataFrame) -> pd.DataFrame:
     # Drop duplicates (there should not be any but make sure)
     stop_times = stop_times.drop_duplicates()
 
-    # Ensure correct data types
-    int_types = ["stop_sequence", "timepoint"]
-    for col in int_types:
-        stop_times[col] = stop_times[col].astype(int)
-
     # If there is only a single sequence for a trip, do not export it
     grouped = stop_times.groupby("trip_id")  # type: ignore
     filtered_stop_times = pd.DataFrame()

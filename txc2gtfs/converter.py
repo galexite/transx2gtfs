@@ -126,7 +126,7 @@ def convert(
     input: Iterable[StrPath],
     output: StrPath,
     append_to_existing: bool = False,
-    worker_cnt: int = 1,
+    num_workers: int = 1,
     file_size_limit: int = 2000,
 ) -> None:
     """
@@ -158,20 +158,13 @@ def convert(
         if os.path.exists(gtfs_db):
             os.remove(gtfs_db)
 
-    try:
-        import tqdm
-
-        iterator = tqdm.tqdm(list(input))
-    except ImportError:
-        iterator = input
-
     # Create workers
-    if worker_cnt > 1:
-        with multiprocessing.Pool(worker_cnt) as pool:
+    if num_workers > 1:
+        with multiprocessing.Pool(num_workers) as pool:
             _process_file = functools.partial(process_file, gtfs_db=gtfs_db)
-            pool.map(_process_file, iterator)
+            pool.map(_process_file, input)
     else:
-        for file in iterator:
+        for file in input:
             process_file(file, gtfs_db)
 
     # Generate output dictionary

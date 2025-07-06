@@ -41,51 +41,25 @@ def parse_day_range(dayinfo: str) -> pd.DataFrame:
         6: "sunday",
     }
 
-    # Containers
-    active_days: list[int] = []
-
-    # Process 'weekend'
-    if "weekend" in dayinfo.strip().lower():
-        active_days.append(5)
-        active_days.append(6)
-
     # Check if dayinfo is specified as day-range
-    elif "To" in dayinfo:
+    if "To" in dayinfo:
         day_range = dayinfo.split("To")
         start_i = weekday_to_num[day_range[0].lower()]
         end_i = weekday_to_num[day_range[1].lower()]
 
         # Get days when the service is active
-        for idx in range(start_i, end_i + 1):
-            # Get days
-            active_days.append(idx)
-
-    # Process a collection of individual weekdays
-    elif "|" in dayinfo:
-        days = dayinfo.split("|")
-        for day in days:
-            active_days.append(weekday_to_num[day.lower()])
-
-    # If input is only a single day
+        active_days = list(range(start_i, end_i + 1))
     else:
-        active_days.append(weekday_to_num[dayinfo.lower()])
-
-    # Generate calendar row
-    row = {}
-    # Create columns
-    for daynum in range(0, 7):
-        # Get day column
-        daycol = num_to_weekday[daynum]
-
-        # Check if service is operative or not
-        if daynum in active_days:
-            active = 1
+        dayinfo = dayinfo.lower()
+        if dayinfo == "weekend":
+            active_days = [5, 6]
         else:
-            active = 0
-        row[daycol] = [active]
+            active_days = [weekday_to_num[day] for day in dayinfo.split("|")]
 
     # Generate DF
-    return pd.DataFrame(row)
+    return pd.DataFrame(
+        {num_to_weekday[n]: [int(n in active_days)] for n in range(0, 7)}
+    )
 
 
 def get_calendar(gtfs_info: pd.DataFrame):
