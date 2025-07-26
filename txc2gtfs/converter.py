@@ -41,14 +41,13 @@ from __future__ import annotations
 
 import functools
 import multiprocessing
-import os
 import sqlite3
 import xml.etree.ElementTree as ET
 from collections.abc import Generator, Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from txc2gtfs.agency import get_agency
+from txc2gtfs.agency import AgencyTable
 from txc2gtfs.calendar import get_calendar
 from txc2gtfs.calendar_dates import get_calendar_dates
 from txc2gtfs.gtfs import export_to_zip
@@ -68,9 +67,6 @@ def process_file(path: Path, gtfs_db: Path) -> None:
 
     # Parse stops
     stop_data = get_stops(data)
-
-    # Parse agency
-    agency = get_agency(data)
 
     # Parse GTFS info containing data about trips, calendar, stop_times and calendar_dates
     gtfs_info = get_gtfs_info(data)
@@ -93,13 +89,19 @@ def process_file(path: Path, gtfs_db: Path) -> None:
     # Initialize database connection
     with sqlite3.connect(gtfs_db) as conn:
         # Only export data into db if there exists valid stop_times data
+
         if len(stop_times) > 0:
+            cur = conn.cursor()
+            for cls in (AgencyTable,):
+                table = cls(cur)
+                table.populate(cur, data)
+                conn.commit()
+
             stop_times.to_sql(
                 name="stop_times", con=conn, index=False, if_exists="append"
             )
             stop_data.to_sql(name="stops", con=conn, index=False, if_exists="append")
             routes.to_sql(name="routes", con=conn, index=False, if_exists="append")
-            agency.to_sql(name="agency", con=conn, index=False, if_exists="append")
             trips.to_sql(name="trips", con=conn, index=False, if_exists="append")
             calendar.to_sql(name="calendar", con=conn, index=False, if_exists="append")
 

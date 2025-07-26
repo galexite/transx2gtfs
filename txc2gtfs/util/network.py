@@ -1,5 +1,3 @@
-import contextlib
-import http
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
@@ -33,10 +31,12 @@ def download_cached(
                 return cached_file
             tmp = _CACHE_DIR / f"{name}.tmp"
             for i in range(1, 4):
-                with contextlib.suppress(http.client.IncompleteRead):
+                try:
                     print(f"Retrieving {name} from {url}... (attempt {i})")
                     urllib.request.urlretrieve(url, tmp)
                     break
+                except Exception as e:
+                    print(f"Exception: {e}")
             tmp.rename(cached_file)
 
     return cached_file

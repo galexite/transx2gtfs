@@ -1,37 +1,46 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from typing import TYPE_CHECKING
 
-import pandas as pd
+if TYPE_CHECKING:
+    import sqlite3
 
-from txc2gtfs.util.xml import NS, XMLTree
+from .util.table import Table
+from .util.xml import NS, XMLTree
 
 
-def get_agency(data: XMLTree) -> pd.DataFrame:
-    """Parse agency information from TransXchange elements"""
+class AgencyTable(Table):
+    def __init__(self, cur: sqlite3.Cursor) -> None:
+        cur.execute("""
+CREATE TABLE IF NOT EXISTS "agency" (
+    "agency_id" VARCHAR(255) PRIMARY KEY,
+    "agency_name" VARCHAR(255),
+    "agency_url" VARCHAR(255) DEFAULT "N/A",
+    "agency_timezone" VARCHAR(255) DEFAULT "Europe/London",
+    "agency_lang" CHAR(2) DEFAULT "en"
+)
+""")
 
-    def gen_agencies() -> Generator[tuple[str, str], None, None]:
-        # Agency id
-        for operator_el in data.iterfind("./txc:Operators/txc:Operator", NS):
-            agency_id = operator_el.get("id")
-            assert agency_id
+    def populate(self, cur: sqlite3.Cursor, data: XMLTree) -> None:
+        def gen_agencies() -> Generator[tuple[str, str], None, None]:
+            # Agency id
+            for operator_el in data.iterfind("./txc:Operators/txc:Operator", NS):
+                agency_id = operator_el.get("id")
+                assert agency_id
 
-            # Agency name
-            agency_name_el = operator_el.find("txc:TradingName", NS)
-            assert agency_name_el is not None
-            agency_name = agency_name_el.text
-            assert agency_name
+                # Agency name
+                agency_name_el = operator_el.find("txc:TradingName", NS)
+                assert agency_name_el is not None
+                agency_name = agency_name_el.text
+                assert agency_name
 
-            yield (
-                agency_id,
-                agency_name,
-            )
+                yield (
+                    agency_id,
+                    agency_name,
+                )
 
-    df = pd.DataFrame.from_records(
-        gen_agencies(), columns=["agency_id", "agency_name"]
-    ).drop_duplicates(ignore_index=True)
-    df.loc[:, "agency_url"] = "NA"
-    df.loc[:, "agency_timezone"] = "Europe/London"
-    df.loc[:, "agency_lang"] = "en"
-
-    return df
+        cur.executemany(
+            "INSERT OR IGNORE INTO agency(agency_id, agency_name) VALUES (?, ?)",
+            gen_agencies(),
+        )
