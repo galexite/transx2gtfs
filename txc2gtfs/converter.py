@@ -1,31 +1,41 @@
 """
 Convert transXchange data format to GTFS format.
 
-The TransXChange model) has seven basic concepts: Service, Registration, Operator, Route,
-StopPoint, JourneyPattern, and VehicleJourney.
-    - A Service brings together the information about a registered bus service, and may contain
-        two types of component service: Standard or Flexible; a mix of both types is allowed within a
-        single Service.
-    - A normal bus schedule is described by a StandardService and a Route. A Route describes
-        the physical path taken by buses on the service as a set of route links.
-    - A FlexibleService describes a bus service that does not have a fixed route, but only a
-        catchment area or a few variable stops with no prescribed pattern of use.
-    - A StandardService has one or more JourneyPattern elements to describe the common
-        logical path of traversal of the stops of the Route as a sequence of timing links (see later),
-        and one or more VehicleJourney elements, which describe individual scheduled journeys by
-        buses over the Route and JourneyPattern at a specific time.
-    - Both types of service have a registered Operator, who runs the service. Other associated
-        operator roles can also be specified.
-    - Route, JourneyPattern and VehicleJoumey follow a sequence of NaPTAN StopPoints. A
-        Route specifies in effect an ordered list of StopPoints. A JourneyPattern specifies an
-        ordered list of links between these points, giving relative times between each stop; a
-        VehicleJourney follows the same list of stops at specific absolute passing times. (The
-        detailed timing Link and elements that connect VehicleJourneys, JourneyPatterns etc to
-        StopPoints are not shown in Figure 3-1). StopPoints may be grouped within StopAreas.
-    - The StopPoints used in a JourneyPattern or Route are either declared locally or by
-        referenced to an external definition using an AnnotatedStopRef
-    - A Registration specifies the registration details for a service. It is mandatory in the
-        registration schema.
+The TransXChange model) has seven basic concepts: Service, Registration, Operator,
+Route, StopPoint, JourneyPattern, and VehicleJourney.
+
+- A Service brings together the information about a registered bus service, and may
+  contain two types of component service: Standard or Flexible; a mix of both
+  types is allowed within a single Service.
+
+- A normal bus schedule is described by a StandardService and a Route. A Route
+  describes the physical path taken by buses on the service as a set of routelinks.
+
+- A FlexibleService describes a bus service that does not have a fixed route, but
+  only a catchment area or a few variable stops with no prescribed pattern of use.
+
+- A StandardService has one or more JourneyPattern elements to describe the common
+  logical path of traversal of the stops of the Route as a sequence of timing
+  links (see later) and one or more VehicleJourney elements, which describe
+  individual scheduled journeys by buses over the Route and JourneyPattern at a
+  specific time.
+
+- Both types of service have a registered Operator, who runs the service. Other
+  associated operator roles can also be specified.
+
+- Route, JourneyPattern and VehicleJourney follow a sequence of NaPTAN StopPoints. A
+  Route specifies in effect an ordered list of StopPoints. A JourneyPattern specifies an
+  ordered list of links between these points, giving relative times between each
+  stop; a VehicleJourney follows the same list of stops at specific absolute passing
+  times. (The detailed timing Link and elements that connect VehicleJourneys,
+  JourneyPatterns etc to StopPoints are not shown in Figure 3-1). StopPoints may be
+  grouped within StopAreas.
+
+- The StopPoints used in a JourneyPattern or Route are either declared locally or by
+  referenced to an external definition using an AnnotatedStopRef.
+
+- A Registration specifies the registration details for a service. It is mandatory
+  in the registration schema.
 
 Author
 ------
@@ -47,15 +57,15 @@ from collections.abc import Generator, Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from txc2gtfs.agency import AgencyTable
-from txc2gtfs.calendar import get_calendar
-from txc2gtfs.calendar_dates import get_calendar_dates
-from txc2gtfs.gtfs import export_to_zip
-from txc2gtfs.routes import get_routes
-from txc2gtfs.stop_times import get_stop_times
-from txc2gtfs.stops import get_stops
-from txc2gtfs.transxchange import get_gtfs_info
-from txc2gtfs.trips import get_trips
+from .agency import AgencyTable
+from .calendar import get_calendar
+from .calendar_dates import get_calendar_dates
+from .gtfs import export_to_zip
+from .routes import get_routes
+from .stop_times import get_stop_times
+from .stops import get_stops
+from .transxchange import get_gtfs_info
+from .trips import get_trips
 
 if TYPE_CHECKING:
     from _typeshed import StrPath
@@ -68,7 +78,8 @@ def process_file(path: Path, gtfs_db: Path) -> None:
     # Parse stops
     stop_data = get_stops(data)
 
-    # Parse GTFS info containing data about trips, calendar, stop_times and calendar_dates
+    # Parse GTFS info containing data about trips, calendar, stop_times and
+    # calendar_dates
     gtfs_info = get_gtfs_info(data)
 
     # Parse stop_times
@@ -111,7 +122,8 @@ def process_file(path: Path, gtfs_db: Path) -> None:
                 )
         else:
             print(
-                f"UserWarning: File {path.name} did not contain valid stop_sequence data, skipping."
+                f"UserWarning: File {path.name} did not contain valid stop_sequence "
+                "data, skipping."
             )
 
 

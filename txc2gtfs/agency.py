@@ -14,7 +14,7 @@ class AgencyTable(Table):
     def __init__(self, cur: sqlite3.Cursor) -> None:
         cur.execute("""
 CREATE TABLE IF NOT EXISTS "agency" (
-    "agency_id" VARCHAR(255) PRIMARY KEY,
+    "agency_id" CHAR(10) PRIMARY KEY,
     "agency_name" VARCHAR(255),
     "agency_url" VARCHAR(255) DEFAULT "N/A",
     "agency_timezone" VARCHAR(255) DEFAULT "Europe/London",

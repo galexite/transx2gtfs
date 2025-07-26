@@ -77,8 +77,8 @@ def get_midnight_formatted_times(
     # at 23:30 and ends at 00:25, the arrival_time should be determined as 24:25
     # to avoid negative time hops.
     if arrival_hour < hour:
-        # Calculate time delta (in hours) between the initial trip datetime and the current
-        # and add 1 to hop over the midnight to the next day
+        # Calculate time delta (in hours) between the initial trip datetime and the
+        # current and add 1 to hop over the midnight to the next day
         last_second_of_day = datetime.combine(current_date, time(23, 59, 59))
         arrival_over_midnight_surplus = (
             int(((current_dt - last_second_of_day) / 60 / 60).seconds) + 1
@@ -116,7 +116,8 @@ def get_vehicle_journeys(journeys: Iterator[XMLElement]) -> pd.DataFrame:
         # Journey pattern reference
         journey_pattern_id = get_text(journey, "txc:JourneyPatternRef")
 
-        # Vehicle journey id ==> will be used to generate service_id (identifies operative weekdays)
+        # Vehicle journey id ==> will be used to generate service_id (identifies
+        # operative weekdays)
         vehicle_journey_id = get_text(journey, "txc:VehicleJourneyCode")
 
         # Parse weekday operation times from VehicleJourney
@@ -187,7 +188,8 @@ def process_vehicle_journey(
     # Journey pattern reference
     journey_pattern_id = get_text(journey, "txc:JourneyPatternRef")
 
-    # Vehicle journey id ==> will be used to generate service_id (identifies operative weekdays)
+    # Vehicle journey id ==> will be used to generate service_id (identifies operative
+    # weekdays)
     vehicle_journey_id = get_text(journey, "txc:VehicleJourneyCode")
 
     # Parse weekday operation times from VehicleJourney
@@ -398,11 +400,15 @@ def get_gtfs_info(data: XMLTree) -> pd.DataFrame:
         - VehicleJourney element includes the departure time information
         - JourneyPatternRef element includes information about the trip_id
         - JourneyPatternSections include the leg duration information
-        - ServiceJourneyPatterns include information about which JourneyPatternSections belong to a given VehicleJourney.
+        - ServiceJourneyPatterns include information about which JourneyPatternSections
+          belong to a given VehicleJourney.
 
-    GTFS fields - required/optional available from TransXChange - <fieldName> shows foreign keys between layers:
-        - Stop_times: <trip_id>, arrival_time, departure_time, stop_id, stop_sequence, (+ optional: shape_dist_travelled, timepoint)
-        - Trips: <route_id>, service_id, <trip_id>, (+ optional: trip_headsign, direction_id, trip_shortname)
+    GTFS fields - required/optional available from TransXChange - <fieldName> shows
+    foreign keys between layers:
+        - Stop_times: <trip_id>, arrival_time, departure_time, stop_id, stop_sequence
+          (and optional: shape_dist_travelled, timepoint)
+        - Trips: <route_id>, service_id, <trip_id>, (+ optional: trip_headsign,
+          direction_id, trip_shortname)
         - Routes: <route_id>, agency_id, route_type, route_short_name, route_long_name
     """
     sections = data.findall(

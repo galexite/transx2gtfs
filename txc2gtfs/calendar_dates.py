@@ -33,10 +33,10 @@ _KNOWN_HOLIDAYS = {
     "EasterMonday": "Easter Monday",
     "BoxingDay": "Boxing Day",
     "ChristmasDay": "Christmas Day",
-    "NewYearsDay": "New Year’s Day",
+    "NewYearsDay": "New Year\u2019s Day",
     "BoxingDayHoliday": "Boxing Day",
     "ChristmasDayHoliday": "Christmas Day",
-    "NewYearsDayHoliday": "New Year’s Day",
+    "NewYearsDayHoliday": "New Year\u2019s Day",
 }
 
 
